@@ -1,7 +1,8 @@
 *.o
 yalnix
 TRACE
-TTYLOG*
+DISC
+PHYS_MEM_*
+core
 core.*
-*~
-.DS_Store
+TTYLOG*
