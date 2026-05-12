@@ -10,11 +10,16 @@ static void (*trap_vector[TRAP_VECTOR_SIZE])(UserContext *);
 //sets up trap table
 void traps_init(void)
 {
-    //for all traps, set to unhandled
-    // init each trap
-    // hardware needs to know where this trap table is 
-    // send hardware update 
+    // set all traps to unhandled
+    for (int i = 0; i < TRAP_VECTOR_SIZE; i++) {
+        trap_vector[i] = trap_unhandled;
+    }
+    
+    trap_vector[TRAP_CLOCK] = trap_clock;
+    trap_vector[TRAP_KERNEL] = trap_kernel;
+    WriteRegister(REG_VECTOR_BASE, (unsigned int)trap_vector);
 }
+
 
 // handles sys_calls from user mode for kernel 
 void trap_kernel(UserContext *uctxt)
@@ -24,7 +29,7 @@ void trap_kernel(UserContext *uctxt)
     // call syscall handler later
     // restore selected process UserContext 
     // return 
-
+     TracePrintf(0, "TRAP_KERNEL syscall code: 0x%x\n", uctxt->code);
     (void)uctxt;
 }
 
@@ -36,6 +41,7 @@ void trap_clock(UserContext *uctxt)
     // if time met switch to other process
     // restore selected process UserContext
     // return
+    TracePrintf(0, "TRAP_CLOCK\n");
 
     (void)uctxt;
 }
@@ -56,7 +62,9 @@ void trap_memory(UserContext *uctxt)
 void trap_unhandled(UserContext *uctxt)
 {
     // print/debug unexpected trap
-    // for now kill process 
+    // for now kill process?
+    TracePrintf(0, "UNHANDLED TRAP vector=%d code=0x%x addr=%p\n",
+            uctxt->vector, uctxt->code, uctxt->addr);
 
     (void)uctxt;
 }

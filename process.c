@@ -1,9 +1,12 @@
 // Ryan Gonzalez, Sam Hirsh process.c
 #include <ykernel.h>
 #include "process.h"
+#include "memory.h"
 // file is process handling( pcb) file 
 // current handling process
 pcb_t *current_process = NULL;
+static pcb_t idle_pcb;
+
 
 // process_init sets up global process structure
 void process_init(void)
@@ -12,7 +15,8 @@ void process_init(void)
     // initialize ready queue
     // initialize blocked queues
     // set current_process to NULL
-    // prepare for idle PCB creation
+    // prepare for idle
+    //  PCB creation
 
     current_process = NULL;
 }
@@ -20,17 +24,28 @@ void process_init(void)
 // process_create_idle creates the idle process
 pcb_t *process_create_idle(UserContext *uctxt)
 {
-    // allocate PCB for idle process
-    // assign PID for idle
-    // set idle process state
-    // allocate Region 1 page table
-    // allocate user stack page near top of Region 1
-    // set user context stack pointer to top of Region 1 stack
-    // set user context program counter to idle code
-    // set current_process to idle PCB
+    idle_pcb.region1_pt = memory_get_region1_pt();
+    idle_pcb.pid = helper_new_pid(idle_pcb.region1_pt);
+    idle_pcb.state = PROC_RUNNING;
 
-    (void)uctxt;
-    return NULL;
+    //page table 
+    idle_pcb.region1_pt = memory_get_region1_pt();
+
+    // dle has no parent, child or states
+    idle_pcb.parent = NULL;
+    idle_pcb.children = NULL;
+    idle_pcb.next_sibling = NULL;
+    idle_pcb.next = NULL;
+    idle_pcb.exit_status = 0;
+    idle_pcb.waiting_for_child = 0;
+
+    //save current user context
+    idle_pcb.user_context = *uctxt;
+
+    //set process to idle
+    current_process = &idle_pcb;
+
+    return &idle_pcb;
 }
 
 // process_create_child creates a child process for Fork
