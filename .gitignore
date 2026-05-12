@@ -1,0 +1,7 @@
+*.o
+yalnix
+TRACE
+TTYLOG*
+core.*
+*~
+.DS_Store
