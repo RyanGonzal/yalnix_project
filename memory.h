@@ -19,16 +19,22 @@ typedef struct frame_info {
     int owner_pid;
 } frame_info_t;
 
-// memory functions
+// memory setup
 void memory_init(unsigned int pmem_size);
+void memory_init_region0(void);
+void memory_init_idle_region1(void);
+void memory_enable_vm(void);
+
+// frame helpers
 int alloc_frame(void);
 void free_frame(int pfn);
 
-// page table headers
+// page table
 void map_page(pte_t *pt, int page_index, int pfn, int prot);
 void unmap_page(pte_t *pt, int page_index);
+pte_t *memory_get_region1_pt(void);
+void *memory_get_idle_stack_top(void);
 
-// kernel heap function
 int SetKernelBrk(void *addr);
 
 #endif
