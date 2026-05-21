@@ -47,7 +47,7 @@ int alloc_frame(void)
     for (int i = 0; i < num_frames; i++){
         if(frame_table[i].state == FRAME_FREE){
             frame_table[i].state = FRAME_USER;
-            frame_table[i].owner_pid = -1;
+            frame_table[i].owner_pid = -1; // TODO: set to pid
             return i;
         }
     }
@@ -101,8 +101,8 @@ void memory_init_idle_region1(void){
     map_page(idle_region1, stack_page, stack_frame, PROT_READ | PROT_WRITE);
     idle_stack_top = (void *)VMEM_1_LIMIT;
 
-
 }
+
 void memory_init_region0(void)
 {
     region0 = malloc(VMEM_0_SIZE / PAGESIZE * sizeof(pte_t));
