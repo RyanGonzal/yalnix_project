@@ -226,10 +226,7 @@ int SetKernelBrk(void *addr)
  * ==>> Declare the argument "proc" to be a pointer to the PCB of 
  * ==>> the current process. 
  */
-int
-LoadProgram(char *name, char *args[], pcb_t proc) 
-
-{
+int LoadProgram(char *name, char *args[], pcb_t *proc) {
     int fd;
     int (*entry)();
     struct load_info li;
@@ -343,7 +340,7 @@ LoadProgram(char *name, char *args[], pcb_t proc)
     * ==>> (rewrite the line below to match your actual data structure) 
     * ==>> proc->uc.sp = cp2; 
     */
-    proc->user_context.sp = cp2;
+    *proc->user_context.sp = cp2;
 
     /*
     * Now save the arguments in a separate buffer in region 0, since
@@ -354,6 +351,10 @@ LoadProgram(char *name, char *args[], pcb_t proc)
     /* 
     * ==>> You should perhaps check that malloc returned valid space 
     */
+
+    if (cp2 == NULL) {
+        TracePrintf(3, "cp2 malloc did not return valid space");
+    }
 
     for (i = 0; args[i] != NULL; i++) {
         TracePrintf(3, "saving arg %d = '%s'\n", i, args[i]);
@@ -374,7 +375,7 @@ LoadProgram(char *name, char *args[], pcb_t proc)
 
     for (int i = VMEM_1_BASE / PAGESIZE; i < VMEM_1_LIMIT / PAGESIZE; i++) {
         proc->region1_pt[i].valid = 0;
-        free_frame(proc->region1_pt[i])
+        free_frame(proc->region1_pt[i]);
     }
 
 
@@ -383,12 +384,18 @@ LoadProgram(char *name, char *args[], pcb_t proc)
     * ==>> (See the LoadProgram diagram in the manual.)
     */
 
+
     /*
     * ==>> First, text. Allocate "li.t_npg" physical pages and map them starting at
     * ==>> the "text_pg1" page in region 1 address space.
     * ==>> These pages should be marked valid, with a protection of
     * ==>> (PROT_READ | PROT_WRITE).
     */
+
+    for (i = text_pg1; i < li.t_npg; i++) {
+        int physical_frame = alloc_frame();
+        map_page(proc->region1_pt, i, physical_frame, PROT_READ | PROT_WRITE);
+    }
 
     /*
     * ==>> Then, data. Allocate "data_npg" physical pages and map them starting at
@@ -397,12 +404,22 @@ LoadProgram(char *name, char *args[], pcb_t proc)
     * ==>> (PROT_READ | PROT_WRITE).
     */
 
+    for (i = data_pg1; i < data_npg; i++) {
+        int physical_frame = alloc_frame();
+        map_page(proc->region1_pt, i, physical_frame, PROT_READ | PROT_WRITE);
+    }
+
     /* 
     * ==>> Then, stack. Allocate "stack_npg" physical pages and map them to the top
     * ==>> of the region 1 virtual address space.
     * ==>> These pages should be marked valid, with a
     * ==>> protection of (PROT_READ | PROT_WRITE).
     */
+
+    for (i = MAX_PT_LEN - stack_npg; i < MAX_PT_LEN ; i++) {
+        int physical_frame = alloc_frame();
+        map_page(proc->region1_pt, i, physical_frame, PROT_READ | PROT_WRITE);
+    }
 
     /*
     * ==>> (Finally, make sure that there are no stale region1 mappings left in the TLB!)
