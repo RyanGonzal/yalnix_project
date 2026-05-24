@@ -424,6 +424,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     /*
     * ==>> (Finally, make sure that there are no stale region1 mappings left in the TLB!)
     */
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1)
 
     /*
     * All pages for the new address space are now in the page table.  
@@ -435,8 +436,8 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     lseek(fd, li.t_faddr, SEEK_SET);
     segment_size = li.t_npg << PAGESHIFT;
     if (read(fd, (void *) li.t_vaddr, segment_size) != segment_size) {
-    close(fd);
-    return KILL;   // see ykernel.h
+        close(fd);
+        return KILL;   // see ykernel.h
     }
 
     /*
@@ -446,8 +447,8 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     segment_size = li.id_npg << PAGESHIFT;
 
     if (read(fd, (void *) li.id_vaddr, segment_size) != segment_size) {
-    close(fd);
-    return KILL;
+        close(fd);
+        return KILL;
     }
 
 
@@ -466,6 +467,11 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> you will need to flush the old mapping. 
     */
 
+    for (i = text_pg1; i < li.t_npg; i++) {
+        //needs to go through virtual pages
+        //get pfns
+        //set the .prot at each pfn
+    }
 
 
     /*
@@ -481,6 +487,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> (rewrite the line below to match your actual data structure) 
     * ==>> proc->uc.pc = (caddr_t) li.entry;
     */
+    *proc->user_context.pc = cp2;
 
     /*
     * Now, finally, build the argument list on the new stack.
