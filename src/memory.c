@@ -1,6 +1,10 @@
 // Ryan Gonzalez, Sam Hirsh memory.c
 #include <ykernel.h>
 #include "memory.h"
+#include <fcntl.h>
+#include <unistd.h>
+#include <load_info.h>
+#include "process.h"
 //file is overall memory file
 
 // frame
@@ -526,7 +530,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     /*
     * Zero out the uninitialized data area
     */
-    bzero(li.id_end, li.ud_end - li.id_end);
+    bzero((void *)li.id_end, li.ud_end - li.id_end);
 
     /*
     * Set the entry point in the process's UserContext
