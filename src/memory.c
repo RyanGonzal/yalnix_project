@@ -140,24 +140,8 @@ void memory_init_region0(void)
 }
 
 pte_t *memory_init_region1(void) {
-    // region1 = malloc(MAX_PT_LEN * * sizeof(pte_t))
-
-    // text_pg1 = (li.t_vaddr - VMEM_1_BASE) >> PAGESHIFT;
-    // data_pg1 = (li.id_vaddr - VMEM_1_BASE) >> PAGESHIFT;
-    // data_npg = li.id_npg + li.ud_npg;
-
-    // for (i = text_pg1; i < text_pg1 + li.t_npg - 1) {
-    //     map_page(region1, i, i, PROT_READ | PROT_WRITE);
-    // }
-    // for (i = data_pg1; i < data_pg1 + data_npg - 1) {
-    //     map_page(region1, i, i, PROT_READ | PROT_WRITE);
-    // }
-    // for (i = MAX_PT_LEN - stack_npg; i < MAX_PT_LEN -1) {
-    //     map_page(region1, i, i, PROT_READ | PROT_WRITE);
-    // }
-    // this function shoud just init and not map 
-
     pte_t *pt = malloc(MAX_PT_LEN * sizeof(pte_t));
+
     if (pt == NULL) {
         return NULL;
     }
@@ -173,8 +157,7 @@ pte_t *memory_init_region1(void) {
 
 
 
-void memory_enable_vm(void)
-{
+void memory_enable_vm(void) {
     // set Region 0 page table regs
     WriteRegister(REG_PTBR0, (unsigned int)region0);
     WriteRegister(REG_PTLR0, VMEM_0_SIZE / PAGESIZE);
@@ -184,19 +167,18 @@ void memory_enable_vm(void)
     WriteRegister(REG_VM_ENABLE, 1);
     vm_enabled = 1;
 }
-pte_t *memory_get_region1_pt(void)
-{
+
+pte_t *memory_get_region1_pt(void) {
     return idle_region1;
 }
-void *memory_get_idle_stack_top(void)
-{
+
+void *memory_get_idle_stack_top(void) {
     return (void *)(VMEM_1_LIMIT - 4);
 }
 
 
 // grows or shrinks the kernel hea
-int SetKernelBrk(void *addr)
-{
+int SetKernelBrk(void *addr) {
     int new_brk_page;
     int frame;
 
@@ -208,6 +190,7 @@ int SetKernelBrk(void *addr)
         if (new_brk_page > kernel_brk_p) {
             kernel_brk_p = new_brk_page;
         }
+
         return 0;
     }
 
@@ -266,7 +249,6 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     long segment_size;
     char *argbuf;
 
-
     /*
     * Open the executable file 
     */
@@ -294,6 +276,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     text_pg1 = (li.t_vaddr - VMEM_1_BASE) >> PAGESHIFT;
     data_pg1 = (li.id_vaddr - VMEM_1_BASE) >> PAGESHIFT;
     data_npg = li.id_npg + li.ud_npg;
+
     /*
     *  Figure out how many bytes are needed to hold the arguments on
     *  the new stack that we are building.  Also count the number of
@@ -364,7 +347,6 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> proc->uc.sp = cp2; 
     */
     proc->user_context.sp = cp2;
-    proc->user_context.sp = cp2;
 
     /*
     * Now save the arguments in a separate buffer in region 0, since
@@ -377,7 +359,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     */
 
     if (cp2 == NULL) {
-        //if one fails more will fail so cant do trace print and continue 
+        // If one fails more will fail so cant do trace print and continue 
         close(fd);
         return ERROR;
     }
@@ -403,12 +385,14 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     //     proc->region1_pt[i].valid = 0;
     //     free_frame(proc->region1_pt[i]);
     // }
-    //region1 pt is just to max len, not vMEM
+    // region1 pt is just to max len, not vMEM
+
     for (i = 0; i < MAX_PT_LEN; i++) {
         if (proc->region1_pt[i].valid) {
             // free frame needed .pfn
             free_frame(proc->region1_pt[i].pfn);
-            //needs to fully clear it, wondering should setting valid, prot and pfn to 0 be done in free frame?
+            
+            // Needs to fully clear it, wondering should setting valid, prot and pfn to 0 be done in free frame?
             proc->region1_pt[i].valid = 0;
             proc->region1_pt[i].prot = 0;
             proc->region1_pt[i].pfn = 0;
@@ -431,10 +415,12 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
 
     for (i = text_pg1; i < text_pg1 + li.t_npg; i++) {
         int physical_frame = alloc_frame();
+
         if (physical_frame == ERROR) {
             close(fd);
             return KILL;
         } 
+
         map_page(proc->region1_pt, i, physical_frame, PROT_READ | PROT_WRITE);
     }
 
@@ -448,10 +434,13 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
 
     for (i = data_pg1; i < data_pg1 + data_npg; i++) {
         int physical_frame = alloc_frame();
+        check_error(physical_frame)
+        
         if (physical_frame == ERROR) {
             close(fd);
             return KILL;
         } 
+
         map_page(proc->region1_pt, i, physical_frame, PROT_READ | PROT_WRITE);
     }
 
@@ -464,10 +453,12 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
 
     for (i = MAX_PT_LEN - stack_npg; i < MAX_PT_LEN ; i++) {
         int physical_frame = alloc_frame();
+        
         if (physical_frame == ERROR) {
             close(fd);
             return KILL;
         }   
+
         map_page(proc->region1_pt, i, physical_frame, PROT_READ | PROT_WRITE);
     }
 
@@ -485,6 +476,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     */
     lseek(fd, li.t_faddr, SEEK_SET);
     segment_size = li.t_npg << PAGESHIFT;
+    
     if (read(fd, (void *) li.t_vaddr, segment_size) != segment_size) {
         close(fd);
         return KILL;   // see ykernel.h
@@ -501,9 +493,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
         return KILL;
     }
 
-
     close(fd);			/* we've read it all now */
-
 
     /*
     * ==>> Above, you mapped the text pages as writable, so this code could write
@@ -518,14 +508,10 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     */
 
     for (i = text_pg1; i < text_pg1 + li.t_npg; i++) {
-        //needs to go through virtual pages
-        //get pfns
-        //set the .prot at each pfn
         proc->region1_pt[i].prot = PROT_READ | PROT_EXEC;
-        }
+    }
 
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
-
 
     /*
     * Zero out the uninitialized data area
