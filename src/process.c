@@ -19,7 +19,6 @@ void process_init(void)
     // set current_process to NULL
     // prepare for idle
     //  PCB creation
-
     current_process = NULL;
 }
 
@@ -71,10 +70,14 @@ void process_exit_current(int status)
     // save exit status
     // mark current process as ZOMBIE
     // wake parent if parent is waiting
-    // free and reap when safe
     // schedule next process
-
-    (void)status;
+    pcb_t *proc = current_process;
+    proc->exit_status = status;
+    proc->state = PROC_ZOMBIE;
+    if (proc->parent != NULL && proc->parent->waiting_for_child) {
+        proc->parent->waiting_for_child = 0;
+        scheduler_add(proc->parent);
+    }
 }
 
 // scheduler_next chooses the next process to run.

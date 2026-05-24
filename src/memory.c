@@ -113,6 +113,9 @@ void memory_init_idle_region1(void){
 void memory_init_region0(void)
 {
     region0 = malloc(VMEM_0_SIZE / PAGESIZE * sizeof(pte_t));
+    if (region0 == NULL) {
+        helper_abort("memory_init_region0: malloc failed");
+    }
 
     //invalidation
     for(int i = 0; i <VMEM_0_SIZE/ PAGESIZE; i++){
@@ -132,23 +135,39 @@ void memory_init_region0(void)
   
 }
 
-void memory_init_region1(void) {
-    region1 = malloc(MAX_PT_LEN * * sizeof(pte_t))
+pte_t *memory_init_region1(void) {
+    // region1 = malloc(MAX_PT_LEN * * sizeof(pte_t))
 
-    text_pg1 = (li.t_vaddr - VMEM_1_BASE) >> PAGESHIFT;
-    data_pg1 = (li.id_vaddr - VMEM_1_BASE) >> PAGESHIFT;
-    data_npg = li.id_npg + li.ud_npg;
+    // text_pg1 = (li.t_vaddr - VMEM_1_BASE) >> PAGESHIFT;
+    // data_pg1 = (li.id_vaddr - VMEM_1_BASE) >> PAGESHIFT;
+    // data_npg = li.id_npg + li.ud_npg;
 
-    for (i = text_pg1; i < text_pg1 + li.t_npg - 1) {
-        map_page(region1, i, i, PROT_READ | PROT_WRITE);
+    // for (i = text_pg1; i < text_pg1 + li.t_npg - 1) {
+    //     map_page(region1, i, i, PROT_READ | PROT_WRITE);
+    // }
+    // for (i = data_pg1; i < data_pg1 + data_npg - 1) {
+    //     map_page(region1, i, i, PROT_READ | PROT_WRITE);
+    // }
+    // for (i = MAX_PT_LEN - stack_npg; i < MAX_PT_LEN -1) {
+    //     map_page(region1, i, i, PROT_READ | PROT_WRITE);
+    // }
+    // this function shoud just init and not map 
+
+    pte_t *pt = malloc(MAX_PT_LEN * sizeof(pte_t));
+    if (pt == NULL) {
+        return NULL;
     }
-    for (i = data_pg1; i < data_pg1 + data_npg - 1) {
-        map_page(region1, i, i, PROT_READ | PROT_WRITE);
+
+    for (int i = 0; i < MAX_PT_LEN; i++) {
+        pt[i].valid = 0;
+        pt[i].prot = 0;
+        pt[i].pfn = 0;
     }
-    for (i = MAX_PT_LEN - stack_npg; i < MAX_PT_LEN -1) {
-        map_page(region1, i, i, PROT_READ | PROT_WRITE);
-    }
+
+    return pt;
 }
+
+
 
 void memory_enable_vm(void)
 {
@@ -341,6 +360,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> proc->uc.sp = cp2; 
     */
     proc->user_context.sp = cp2;
+    proc->user_context.sp = cp2;
 
     /*
     * Now save the arguments in a separate buffer in region 0, since
@@ -353,7 +373,9 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     */
 
     if (cp2 == NULL) {
-        TracePrintf(3, "cp2 malloc did not return valid space!");
+        //if one fails more will fail so cant do trace print and continue 
+        close(fd);
+        return ERROR;
     }
 
     for (i = 0; args[i] != NULL; i++) {
@@ -373,11 +395,19 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> for every valid page, free the pfn and mark the page invalid.
     */
 
-    // TODO: set proc->region1_pt[i] to var, reduce code repetition
-    for (int i = VMEM_1_BASE/PAGESIZE; i < VMEM_1_LIMIT/PAGESIZE; i++) {
-        if (proc->region1_pt[i].valid == 0) { 
-            proc->region1_pt[i].valid = 0;
+    // for (int i = VMEM_1_BASE / PAGESIZE; i < VMEM_1_LIMIT / PAGESIZE; i++) {
+    //     proc->region1_pt[i].valid = 0;
+    //     free_frame(proc->region1_pt[i]);
+    // }
+    //region1 pt is just to max len, not vMEM
+    for (i = 0; i < MAX_PT_LEN; i++) {
+        if (proc->region1_pt[i].valid) {
+            // free frame needed .pfn
             free_frame(proc->region1_pt[i].pfn);
+            //needs to fully clear it, wondering should setting valid, prot and pfn to 0 be done in free frame?
+            proc->region1_pt[i].valid = 0;
+            proc->region1_pt[i].prot = 0;
+            proc->region1_pt[i].pfn = 0;
         }
     }
 
@@ -395,9 +425,13 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> (PROT_READ | PROT_WRITE).
     */
 
-    for (int i = text_pg1; i < text_pg1 + li.t_npg; i++) {
-        int allocated_pfn = alloc_frame();
-        map_page(proc->region1_pt, i, allocated_pfn, PROT_READ | PROT_WRITE);
+    for (i = text_pg1; i < text_pg1 + li.t_npg; i++) {
+        int physical_frame = alloc_frame();
+        if (physical_frame == ERROR) {
+            close(fd);
+            return KILL;
+        } 
+        map_page(proc->region1_pt, i, physical_frame, PROT_READ | PROT_WRITE);
     }
 
 
@@ -408,9 +442,13 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> (PROT_READ | PROT_WRITE).
     */
 
-    for (int i = data_pg1; i < data_pg1 + data_npg; i++) {
-        int allocated_pfn = alloc_frame();
-        map_page(proc->region1_pt, i, allocated_pfn, PROT_READ | PROT_WRITE);
+    for (i = data_pg1; i < data_pg1 + data_npg; i++) {
+        int physical_frame = alloc_frame();
+        if (physical_frame == ERROR) {
+            close(fd);
+            return KILL;
+        } 
+        map_page(proc->region1_pt, i, physical_frame, PROT_READ | PROT_WRITE);
     }
 
     /* 
@@ -420,15 +458,19 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> protection of (PROT_READ | PROT_WRITE).
     */
 
-    for (int i = MAX_PT_LEN - stack_npg; i < MAX_PT_LEN ; i++) {
-        int allocated_pfn = alloc_frame();
-        map_page(proc->region1_pt, i, allocated_pfn, PROT_READ | PROT_WRITE);
+    for (i = MAX_PT_LEN - stack_npg; i < MAX_PT_LEN ; i++) {
+        int physical_frame = alloc_frame();
+        if (physical_frame == ERROR) {
+            close(fd);
+            return KILL;
+        }   
+        map_page(proc->region1_pt, i, physical_frame, PROT_READ | PROT_WRITE);
     }
 
     /*
     * ==>> (Finally, make sure that there are no stale region1 mappings left in the TLB!)
     */
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1)
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
     /*
     * All pages for the new address space are now in the page table.  
@@ -471,12 +513,15 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> you will need to flush the old mapping. 
     */
 
-    for (int i = text_pg1; i < text_pg1 + li.t_npg; i++) {
-        current_pfn = proc->region1_pt[i].pfn
-        map_page(proc->region1_pt, i, current_pfn, PROT_READ | PROT_EXEC);
-    }
+    for (i = text_pg1; i < text_pg1 + li.t_npg; i++) {
+        //needs to go through virtual pages
+        //get pfns
+        //set the .prot at each pfn
+        proc->region1_pt[i].prot = PROT_READ | PROT_EXEC;
+        }
 
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1)
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+
 
     /*
     * Zero out the uninitialized data area
@@ -491,6 +536,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     * ==>> (rewrite the line below to match your actual data structure) 
     * ==>> proc->uc.pc = (caddr_t) li.entry;
     */
+
     proc->user_context.pc = (caddr_t) li.entry;
 
     /*
