@@ -35,6 +35,7 @@ typedef struct pcb {
     // exit and wait
     int exit_status;
     int waiting_for_child;
+    int delay_ticks;
 
     // queue pointer
     struct pcb *next;
@@ -42,6 +43,7 @@ typedef struct pcb {
 
 // current process pointer
 extern pcb_t *current_process;
+extern pcb_t *init_process;
 
 // process function headers
 void process_init(void);
@@ -49,7 +51,8 @@ pcb_t *process_create_idle(UserContext *uctxt);
 pcb_t *process_create_child(pcb_t *parent);
 void process_exit_current(int status);
 pcb_t *process_wait_for_child(int *status);
-
+pcb_t *process_create_init(UserContext *uctxt);
+pcb_t *process_get_idle(void);
 // scheduler function headers
 pcb_t *scheduler_next(void);
 void scheduler_add(pcb_t *proc);

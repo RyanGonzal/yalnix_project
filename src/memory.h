@@ -4,6 +4,8 @@
 #define MEMORY_H
 #include <ykernel.h>
 
+struct pcb;
+typedef struct pcb pcb_t;
 // Physical frame states
 typedef enum frame_state {
     FRAME_FREE,
@@ -36,5 +38,10 @@ pte_t *memory_get_region1_pt(void);
 void *memory_get_idle_stack_top(void);
 
 int SetKernelBrk(void *addr);
+// Region mem
+pte_t *memory_init_region1(void);
+
+// Load user program into a process address space
+int LoadProgram(char *name, char *args[], pcb_t *proc);
 
 #endif
