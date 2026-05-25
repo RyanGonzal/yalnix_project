@@ -17,6 +17,7 @@ void traps_init(void)
     
     trap_vector[TRAP_CLOCK] = trap_clock;
     trap_vector[TRAP_KERNEL] = trap_kernel;
+    trap_vector[TRAP_MEMORY] = trap_memory;
     WriteRegister(REG_VECTOR_BASE, (unsigned int)trap_vector);
 }
 
@@ -29,8 +30,14 @@ void trap_kernel(UserContext *uctxt)
     // call syscall handler later
     // restore selected process UserContext 
     // return 
-     TracePrintf(0, "TRAP_KERNEL syscall code: 0x%x\n", uctxt->code);
-    (void)uctxt;
+    TracePrintf(0, "TRAP_KERNEL syscall code: 0x%x\n", uctxt->code);
+    if (current_process != NULL) {
+        current_process->user_context = *uctxt;
+    }
+    syscall_handle(uctxt);
+    if (current_process != NULL) {
+        *uctxt = current_process->user_context;
+    }
 }
 
 // timer interrupts 
@@ -42,8 +49,15 @@ void trap_clock(UserContext *uctxt)
     // restore selected process UserContext
     // return
     TracePrintf(0, "TRAP_CLOCK\n");
+    if (init_process != NULL && init_process->state == PROC_BLOCKED) {
+        init_process->delay_ticks--;
 
-    (void)uctxt;
+        if (init_process->delay_ticks <= 0) {
+            scheduler_add(init_process);
+        }
+    }
+
+    scheduler_run_next(uctxt); 
 }
 
 // invalid memory requests or page table faults 
@@ -63,8 +77,34 @@ void trap_unhandled(UserContext *uctxt)
 {
     // print/debug unexpected trap
     // for now kill process?
+    //might not need this bc ofd syscall_handle
     TracePrintf(0, "UNHANDLED TRAP vector=%d code=0x%x addr=%p\n",
             uctxt->vector, uctxt->code, uctxt->addr);
 
     (void)uctxt;
+}
+void syscall_handle(UserContext *uctxt)
+{
+    // handle function just delaying and switching 
+    switch (uctxt->code) {
+        case YALNIX_GETPID:
+            uctxt->regs[0] = current_process->pid;
+            break;
+        case YALNIX_DELAY:
+            if (uctxt->regs[0] <= 0) {
+                uctxt->regs[0] = ERROR;
+                break;
+            }
+            current_process->delay_ticks = uctxt->regs[0];
+            scheduler_block_current();
+            scheduler_run_next(uctxt);
+            break;
+        case YALNIX_BRK:
+            uctxt->regs[0] = 0;
+            break;
+        default:
+            TracePrintf(0, "Unknown syscall %d\n", uctxt->code);
+            uctxt->regs[0] = ERROR;
+            break;
+    }
 }

@@ -20,7 +20,7 @@ K_INCS = memory.h process.h traps.h syscalls.h
 U_SRC_DIR = .
 
 # What are the user c and include files?
-U_SRCS = user.c 
+U_SRCS = init.c 
 U_INCS =  
 
 
@@ -29,8 +29,8 @@ U_INCS =
 #==========================================================
 
 #make all will make all the kernel objects and user objects
-# ALL = $(KERNEL_ALL) $(USER_APPS)
-ALL = $(KERNEL_ALL) 
+ALL = $(KERNEL_ALL) $(USER_APPS)
+# ALL = $(KERNEL_ALL) 
 KERNEL_ALL = yalnix
 
 

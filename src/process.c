@@ -6,10 +6,8 @@
 // current handling process
 pcb_t *current_process = NULL;
 static pcb_t idle_pcb;
-
-
-
-
+static pcb_t init_pcb;
+pcb_t *init_process = NULL;
 // process_init sets up global process structure
 void process_init(void)
 {
@@ -20,6 +18,7 @@ void process_init(void)
     // prepare for idle
     //  PCB creation
     current_process = NULL;
+    init_process = NULL;
 }
 
 // process_create_idle creates the idle process
@@ -47,6 +46,30 @@ pcb_t *process_create_idle(UserContext *uctxt)
     current_process = &idle_pcb;
 
     return &idle_pcb;
+}
+pcb_t *process_create_init(UserContext *uctxt)
+{
+    init_pcb.region1_pt = memory_init_region1();
+    if (init_pcb.region1_pt == NULL) {
+        helper_abort("failed to create Region 1 page table");
+    }
+
+    init_pcb.pid = helper_new_pid(init_pcb.region1_pt);
+    init_pcb.state = PROC_READY;
+    //init has no real states
+    init_pcb.parent = NULL;
+    init_pcb.children = NULL;
+    init_pcb.next_sibling = NULL;
+    init_pcb.next = NULL;
+    init_pcb.exit_status = 0;
+    init_pcb.waiting_for_child = 0;
+    init_pcb.delay_ticks = 0;
+
+    init_pcb.user_context = *uctxt;
+
+    init_process = &init_pcb;
+
+    return &init_pcb;
 }
 
 // process_create_child creates a child process for Fork
@@ -86,7 +109,13 @@ pcb_t *scheduler_next(void)
     // if ready queue has a process, return first process in ready queue
     // else return idle process
 
-    return current_process;
+    //for now if init ready run init, else idle 
+    if (init_process != NULL && init_process->state == PROC_READY) {
+        return init_process;
+    }
+
+    return &idle_pcb;
+
 }
 
 // scheduler_add adds a process to the ready queue.
@@ -94,8 +123,11 @@ void scheduler_add(pcb_t *proc)
 {
     // mark process as READY
     // add process to ready queue
-
-    (void)proc;
+    //for now just set to ready
+    if (proc == NULL) {
+        return;
+    }
+    proc->state = PROC_READY;
 }
 
 // scheduler_block_current blocks the currently running process.
@@ -104,6 +136,9 @@ void scheduler_block_current(void)
     // mark current process as BLOCKED
     // place current process on correct blocked queue
     // schedule another process
+     if (current_process != NULL) {
+        current_process->state = PROC_BLOCKED;
+    }
 }
 
 // scheduler_run_next switches from current process to next process
@@ -115,6 +150,30 @@ void scheduler_run_next(UserContext *uctxt)
     // switch kernel stack mapping if needed
     // flush TLB entries
     // copy next process UserContext into uctxt
+    pcb_t *next;
 
-    (void)uctxt;
+    // Save current process user context
+    if (current_process != NULL) {
+        current_process->user_context = *uctxt;
+
+        if (current_process->state == PROC_RUNNING) {
+            current_process->state = PROC_READY;
+        }
+    }
+    // Pick next process
+    next = scheduler_next();
+
+    current_process = next;
+    current_process->state = PROC_RUNNING;
+
+    // Switch Region 1 to selected process
+    WriteRegister(REG_PTBR1, (unsigned int)current_process->region1_pt);
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+
+    // Restore selected process user context
+    *uctxt = current_process->user_context;   
+}
+pcb_t *process_get_idle(void)
+{
+    return &idle_pcb;
 }
