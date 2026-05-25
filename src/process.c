@@ -45,23 +45,39 @@ void process_init(void) {
     // initialize blocked queues
 
     pcb_queue_t *ready_queue = malloc(sizeof(pcb_queue_t));
+    if (ready_queue == NULL) return ERROR;
+    
     pcb_queue_t *blocked_queue = malloc(sizeof(pcb_queue_t));
-
-    if (ready_queue == NULL) {
-        return ERROR;
-    }
-
-    if (blocked_queue == NULL) {
-        return ERROR;
-    }
+    if (blocked_queue == NULL) return ERROR;
 
     // set current_process to NULL
     current_process = NULL;
 
+    //  PCB creation
+    // Nothing below this is correct
     pcb_t new_pcb = malloc(sizeof(new_pcb_t));
+    if (new_pcb == NULL) return ERROR;  
+
+    new_pcb.region1_pt = memory_get_region1_pt();
+    new_pcb.pid = helper_new_pid(idle_pcb.region1_pt);
+    new_pcb.state = PROC_READY;
+    new_pcb.region1_pt = memory_get_region1_pt();
+    new_pcb.parent = NULL;
+    new_pcb.children = NULL;
+    new_pcb.next_sibling = NULL;
+    new_pcb.next = NULL;
+    new_pcb.exit_status = 0;
+    new_pcb.waiting_for_child = 0;
+
+    // save current user context
+    UserContext *uctxt = malloc(sizeof(UserContext))
+    if (uctxt == NULL) return ERROR;  
+
+    new_pcb.user_context = *uctxt;
+
+    enqueue(ready_queue, new_pcb);
 
     // prepare for idle
-    //  PCB creation
 }
 
 // process_create_idle creates the idle process

@@ -13,7 +13,7 @@ void DoIdle(void)
     }
 }
 // main entry point 
-void KernelStart(char *cmd_args[],unsigned int pmem_size,UserContext *uctxt)
+void KernelStart(char *cmd_args[],unsigned int pmem_size, UserContext *uctxt)
 {
     TracePrintf(0, "Kernel Start \n");
     (void)cmd_args;
