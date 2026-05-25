@@ -45,11 +45,16 @@ int KernelExit(UserContext *uctxt)
 {
     // get exit status
     // mark current process as zombie
-    // if parent is waiting wake, reap
     // schedule another process
+    int status = uctxt->regs[0];
 
-    (void)uctxt;
-    return ERROR;
+    process_exit_current(status);
+
+    scheduler_run_next(uctxt);
+
+    return 0;
+
+    
 }
 
 // waits for child process to exit
@@ -152,6 +157,9 @@ void syscall_handle(UserContext *uctxt)
 
         case YALNIX_WAIT:
             uctxt->regs[0] = KernelWait(uctxt);
+            break;
+        case YALNIX_EXIT:
+            uctxt->regs[0] = KernelExit(uctxt);
             break;
         default:
             TracePrintf(0, "Unknown syscall %d\n", uctxt->code);

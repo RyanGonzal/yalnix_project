@@ -16,8 +16,6 @@ typedef enum proc_state {
 // PCB: Process Control Block.
 typedef struct pcb {
     int pid;
-
-    
     proc_state_t state;
 
     // saved user and kernel context 
