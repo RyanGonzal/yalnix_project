@@ -81,12 +81,14 @@ void process_init(void) {
     // new_pcb.waiting_for_child = 0;
 
     // save current user context
-    // UserContext *uctxt = malloc(sizeof(UserContext))
-    // if (uctxt == NULL) return ERROR;  
+    UserContext *uctxt = malloc(sizeof(UserContext))
+    if (uctxt == NULL) return ERROR;  
+    // Allocate kernel context
+    KernelContext *kntxt = malloc(sizeof(KernelContext))
+    // add kernel stack frames
 
     // new_pcb.user_context = *uctxt;
 
-    // enqueue(ready_queue, new_pcb);
 
     // prepare for idle
     // we dont need to create a pcb, do we even need this function?
@@ -118,6 +120,10 @@ pcb_t *process_create_idle(UserContext *uctxt)
 
     //save current user context
     idle_pcb.user_context = *uctxt;
+
+    // Allocate kernel context
+    KernelContext *kntxt = malloc(sizeof(KernelContext))
+    // add kernel stack frames
 
     //set process to idle
     current_process = &idle_pcb;
