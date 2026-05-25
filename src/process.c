@@ -50,6 +50,38 @@ pcb_t *process_create_idle(UserContext *uctxt)
     return &idle_pcb;
 }
 
+
+typedef struct {
+    pcb_t front;
+    pcb_t back;
+} ready_queue_t;
+
+void init_queue(ready_queue_t *rq) {
+    rq->front = NULL;
+    rq->back = NULL;
+}
+
+void enqueue(ready_queue_t *rq, pcb_t pcb) {
+    pcb->next = NULL;
+
+    if (rq->back != NULL) rq->back->next = pcb;
+
+    rq->back = pcb;
+
+    if (rq->front != NULL) rq->front = pcb;
+}
+
+void dequeue(ready_queue_t *rq, pcb_t pcb) {
+    if (rq->front == NULL) return 0;
+
+    pcb_t dequeued = rq->front;
+
+    rq->front = rq->front->next;
+
+    if (rq->front == NULL) rq->front = rq->back;
+}
+
+
 // process_create_child creates a child process for Fork
 pcb_t *process_create_child(pcb_t *parent)
 {
@@ -91,6 +123,8 @@ void scheduler_add(pcb_t *proc)
 {
     // mark process as READY
     // add process to ready queue
+
+
 
     (void)proc;
 }
