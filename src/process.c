@@ -6,8 +6,7 @@
 // current handling process
 pcb_t *current_process = NULL;
 static pcb_t idle_pcb;
-static pcb_t init_pcb;
-pcb_t *init_process = NULL;
+
 typedef struct {
     pcb_t *front;
     pcb_t *back;
@@ -53,11 +52,11 @@ void process_init(void) {
     // initialize ready queue
     // initialize blocked queues
 
-    // pcb_queue_t *ready_queue = malloc(sizeof(pcb_queue_t));
-    // if (ready_queue == NULL) return ERROR;
+    pcb_queue_t *ready_queue = malloc(sizeof(pcb_queue_t));
+    if (ready_queue == NULL) return ERROR;
     
-    // pcb_queue_t *blocked_queue = malloc(sizeof(pcb_queue_t));
-    // if (blocked_queue == NULL) return ERROR;
+    pcb_queue_t *blocked_queue = malloc(sizeof(pcb_queue_t));
+    if (blocked_queue == NULL) return ERROR;
 
     // set current_process to NULL
     // prepare for idle
@@ -67,8 +66,8 @@ void process_init(void) {
 
     //  PCB creation
     // Nothing below this is correct
-    // pcb_t new_pcb = malloc(sizeof(new_pcb_t));
-    // if (new_pcb == NULL) return ERROR;  
+    pcb_t new_pcb = malloc(sizeof(new_pcb_t));
+    if (new_pcb == NULL) return ERROR;  
 
     // new_pcb.region1_pt = memory_get_region1_pt();
     // new_pcb.pid = helper_new_pid(idle_pcb.region1_pt);
@@ -204,27 +203,20 @@ pcb_t *scheduler_next(void)
 }
 
 // scheduler_add adds a process to the ready queue.
-void scheduler_add(pcb_t *proc)
-{
+void scheduler_add(pcb_t *proc) {
     // mark process as READY
     // add process to ready queue
-    //for now just set to ready
-    if (proc == NULL || proc == process_get_idle()) {
-        return;
-    }
-    proc->state = PROC_READY;
-    enqueue(&ready_queue, proc);
+
+
+
+    (void)proc;
 }
 
 // scheduler_block_current blocks the currently running process.
-void scheduler_block_current(void)
-{
+void scheduler_block_current(void) {
     // mark current process as BLOCKED
     // place current process on correct blocked queue
     // schedule another process
-     if (current_process != NULL) {
-        current_process->state = PROC_BLOCKED;
-    }
 }
 
 // scheduler_run_next switches from current process to next process
