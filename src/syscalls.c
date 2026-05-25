@@ -112,3 +112,28 @@ int KernelTtyWrite(UserContext *uctxt)
     (void)uctxt;
     return ERROR;
 }
+void syscall_handle(UserContext *uctxt)
+{
+    // handle function just delaying and switching 
+    switch (uctxt->code) {
+        case YALNIX_GETPID:
+            uctxt->regs[0] = current_process->pid;
+            break;
+        case YALNIX_DELAY:
+            if (uctxt->regs[0] <= 0) {
+                uctxt->regs[0] = ERROR;
+                break;
+            }
+            current_process->delay_ticks = uctxt->regs[0];
+            scheduler_block_current();
+            scheduler_run_next(uctxt);
+            break;
+        case YALNIX_BRK:
+            uctxt->regs[0] = 0;
+            break;
+        default:
+            TracePrintf(0, "Unknown syscall %d\n", uctxt->code);
+            uctxt->regs[0] = ERROR;
+            break;
+    }
+}

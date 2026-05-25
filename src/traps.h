@@ -16,6 +16,6 @@ void trap_kernel(UserContext *uctxt);
 void trap_clock(UserContext *uctxt);
 void trap_memory(UserContext *uctxt);
 void trap_unhandled(UserContext *uctxt);
-void syscall_handle(UserContext *uctxt);
+
 
 #endif
