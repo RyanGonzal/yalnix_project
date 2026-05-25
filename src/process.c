@@ -263,3 +263,68 @@ pcb_t *process_get_idle(void)
 {
     return &idle_pcb;
 }
+//helper for wait and syswait
+static pcb_t *find_zombie_child(pcb_t *parent)
+{
+    //return if there is a zombie, else NULL
+    pcb_t *child = parent->children;
+    
+    while (child != NULL) {
+        if (child->state == PROC_ZOMBIE) {
+            return child;
+        }
+        child = child->next_sibling;
+    }
+    return NULL;
+}
+//remove a child from parent, given target 
+static void remove_child(pcb_t *parent, pcb_t *target)
+{
+    pcb_t *prev = NULL;
+    pcb_t *curr = parent->children;
+    // while curr exits
+    while (curr != NULL) {
+        // if found switch child to next sib and mark to parent
+        if (curr == target) {
+            if (prev == NULL) {
+                parent->children = curr->next_sibling;
+            } else {
+                prev->next_sibling = curr->next_sibling;
+            }
+            curr->next_sibling = NULL;
+            return;
+        }
+        //this is leet code at its finest
+        prev = curr;
+        curr = curr->next_sibling;
+    }
+}
+// wait needs to have 3 cases, no children then error, zombie child reap, or has running children so block parent 
+pcb_t *process_wait_for_child(int *status)
+{
+    pcb_t *parent = current_process;
+    pcb_t *zombie;
+    // if no parent or children just return 
+    if (parent == NULL) {
+        return NULL;
+    }
+    if (parent->children == NULL) {
+        return NULL;
+    }
+    zombie = find_zombie_child(parent);
+    // if there is zombie child, return status and remove zombie
+    if (zombie != NULL) {
+        if (status != NULL) {
+            *status = zombie->exit_status;
+        }
+
+        remove_child(parent, zombie);
+        // also remove return so parent can maybe be unblocked
+        return zombie;
+    }
+    // else block 
+    parent->waiting_for_child = 1;
+    scheduler_block_current();
+
+    return NULL;
+}

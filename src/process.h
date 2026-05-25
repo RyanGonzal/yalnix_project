@@ -59,5 +59,5 @@ void scheduler_add(pcb_t *proc);
 void scheduler_block_current(void);
 void scheduler_run_next(UserContext *uctxt);
 pcb_t *process_create_idle(UserContext *uctxt);
-
+pcb_t *process_wait_for_child(int *status);
 #endif

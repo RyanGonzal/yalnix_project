@@ -57,9 +57,16 @@ int KernelWait(UserContext *uctxt)
 {
     // while waiting for zombie child
     // get child pid and exit status
+     int status;
+    pcb_t *child;
 
-    (void)uctxt;
-    return ERROR;
+    child = process_wait_for_child(&status);
+
+    if (child == NULL) {
+        return ERROR;
+    }
+    return child->pid;
+
 }
 
 // get current pid
@@ -69,7 +76,11 @@ int KernelGetPid(UserContext *uctxt)
     // return current_process pid
 
     (void)uctxt;
-    return ERROR;
+    if (current_process == NULL) {
+        return ERROR;
+    }
+
+    return current_process->pid;
 }
 
 // changes heap break 
@@ -78,7 +89,7 @@ int KernelBrk(UserContext *uctxt)
     // if break address is validated
     // grow or shrink, then update page table
     (void)uctxt;
-    return ERROR;
+    return 0;
 }
 
 // delays kernel by blocking clock
@@ -87,9 +98,19 @@ int KernelDelay(UserContext *uctxt)
     // get delay ticks
     // block current process
     // wake after delay
+    int ticks = uctxt->regs[0];
 
-    (void)uctxt;
-    return ERROR;
+    if (ticks <= 0) {
+        return ERROR;
+    }
+
+    current_process->delay_ticks = ticks;
+
+    scheduler_block_current();
+    scheduler_run_next(uctxt);
+
+    return 0;
+
 }
 
 // read from terminal via TTY
@@ -116,22 +137,21 @@ int KernelTtyWrite(UserContext *uctxt)
 }
 void syscall_handle(UserContext *uctxt)
 {
-    // handle function just delaying and switching 
     switch (uctxt->code) {
         case YALNIX_GETPID:
-            uctxt->regs[0] = current_process->pid;
+            uctxt->regs[0] = KernelGetPid(uctxt);
             break;
+
         case YALNIX_DELAY:
-            if (uctxt->regs[0] <= 0) {
-                uctxt->regs[0] = ERROR;
-                break;
-            }
-            current_process->delay_ticks = uctxt->regs[0];
-            scheduler_block_current();
-            scheduler_run_next(uctxt);
+            uctxt->regs[0] = KernelDelay(uctxt);
             break;
+
         case YALNIX_BRK:
-            uctxt->regs[0] = 0;
+            uctxt->regs[0] = KernelBrk(uctxt);
+            break;
+
+        case YALNIX_WAIT:
+            uctxt->regs[0] = KernelWait(uctxt);
             break;
         default:
             TracePrintf(0, "Unknown syscall %d\n", uctxt->code);
