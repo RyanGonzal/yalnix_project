@@ -431,7 +431,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
 
     for (i = data_pg1; i < data_pg1 + data_npg; i++) {
         int physical_frame = alloc_frame();
-        check_error(physical_frame)
+        // check_error(physical_frame);
         
         if (physical_frame == ERROR) {
             close(fd);
