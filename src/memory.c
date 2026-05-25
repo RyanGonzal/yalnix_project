@@ -312,11 +312,8 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     */
     cp2 = (caddr_t)cpp - INITIAL_STACK_FRAME_SIZE;
 
-
-
     TracePrintf(1, "prog_size %d, text %d data %d bss %d pages\n",
     li.t_npg + data_npg, li.t_npg, li.id_npg, li.ud_npg);
-
 
     /* 
     * Compute how many pages we need for the stack */
@@ -392,7 +389,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
             // free frame needed .pfn
             free_frame(proc->region1_pt[i].pfn);
             
-            // Needs to fully clear it, wondering should setting valid, prot and pfn to 0 be done in free frame?
+            // needs to fully clear it, wondering should setting valid, prot and pfn to 0 be done in free frame?
             proc->region1_pt[i].valid = 0;
             proc->region1_pt[i].prot = 0;
             proc->region1_pt[i].pfn = 0;
