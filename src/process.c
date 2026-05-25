@@ -7,20 +7,61 @@
 pcb_t *current_process = NULL;
 static pcb_t idle_pcb;
 
+typedef struct {
+    pcb_t front;
+    pcb_t back;
+} pcb_queue_t;
 
+void init_queue(pcb_queue_t *rq) {
+    rq->front = NULL;
+    rq->back = NULL;
+}
+
+void enqueue(pcb_queue_t *rq, pcb_t pcb) {
+    pcb->next = NULL;
+
+    if (rq->back != NULL) rq->back->next = pcb;
+
+    rq->back = pcb;
+
+    if (rq->front != NULL) rq->front = pcb;
+}
+
+void dequeue(pcb_queue_t *rq, pcb_t pcb) {
+    if (rq->front == NULL) return 0;
+
+    pcb_t dequeued = rq->front;
+
+    rq->front = rq->front->next;
+
+    if (rq->front == NULL) rq->front = rq->back;
+}
 
 
 // process_init sets up global process structure
-void process_init(void)
-{
+void process_init(void) {
     // initialize global process table / queue structure
     // initialize ready queue
     // initialize blocked queues
+
+    pcb_queue_t *ready_queue = malloc(sizeof(pcb_queue_t));
+    pcb_queue_t *blocked_queue = malloc(sizeof(pcb_queue_t));
+
+    if (ready_queue == NULL) {
+        return ERROR;
+    }
+
+    if (blocked_queue == NULL) {
+        return ERROR;
+    }
+
     // set current_process to NULL
+    current_process = NULL;
+
+    pcb_t new_pcb = malloc(sizeof(new_pcb_t));
+
     // prepare for idle
     //  PCB creation
-
-    current_process = NULL;
 }
 
 // process_create_idle creates the idle process
@@ -51,40 +92,10 @@ pcb_t *process_create_idle(UserContext *uctxt)
 }
 
 
-typedef struct {
-    pcb_t front;
-    pcb_t back;
-} ready_queue_t;
-
-void init_queue(ready_queue_t *rq) {
-    rq->front = NULL;
-    rq->back = NULL;
-}
-
-void enqueue(ready_queue_t *rq, pcb_t pcb) {
-    pcb->next = NULL;
-
-    if (rq->back != NULL) rq->back->next = pcb;
-
-    rq->back = pcb;
-
-    if (rq->front != NULL) rq->front = pcb;
-}
-
-void dequeue(ready_queue_t *rq, pcb_t pcb) {
-    if (rq->front == NULL) return 0;
-
-    pcb_t dequeued = rq->front;
-
-    rq->front = rq->front->next;
-
-    if (rq->front == NULL) rq->front = rq->back;
-}
-
-
 // process_create_child creates a child process for Fork
 pcb_t *process_create_child(pcb_t *parent)
 {
+
     // allocate PCB for child
     // assign new PID
     // copy parent UserContext
