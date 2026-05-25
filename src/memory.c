@@ -149,7 +149,7 @@ pte_t *memory_init_region1(void) {
     for (int i = 0; i < MAX_PT_LEN; i++) {
         pt[i].valid = 0;
         pt[i].prot = 0;
-        pt[i].pfn = 0;
+        // pt[i].pfn = 0; // Probably should not do this bc 0 could be actual mapping
     }
 
     return pt;
