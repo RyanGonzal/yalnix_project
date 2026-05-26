@@ -57,56 +57,49 @@ void KernelStart(char *cmd_args[],unsigned int pmem_size, UserContext *uctxt)
     TracePrintf(0, "Leaving KernelSart\n");
 }
 
-KernelContext KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb) {
+KernelContext *KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb)
+{
+    pcb_t *current = (pcb_t *)current_pcb;
+    pcb_t *next = (pcb_t *)next_pcb;
     // Check that both pcbs are not null
-    if (current_pcb == NULL) {
-        return NULL;
+    if (current == NULL) {
+        helper_abort("KCSwitch: current_pcb is NULL");
     }
-
-    if (next_pcb == NULL) {
-        return NULL;
+    if (next == NULL) {
+        helper_abort("KCSwitch: next_pcb is NULL");
     }
-
     // Save current process kernel context
-    memcpy(current_pcb.kernel_context, KCin, sizeof(current_pcb.kernel_context))
-
+    current->kernel_context = *KCin;
     // loop through kernel stack and save each page in region 0 into current_pcbs stack frames
-        // saving whatever is actually in memory into current pcb 
-    for (int i = KERNEL_STACK_BASE >> PAGESHIFT; i < KERNEL_STACK_LIMIT >> PAGESHIFT; i++){
-        // TODO: Here.
-        // I think the pcb needs to have pointer to kernel stack?
-        // This stack is set in process as discussed with TA (idle and init)
-        current_pcb->kernel_stack_frames[i] = region0[i]
-    }
-
-
-
+    // saving whatever is actually in memory into current pcb
+    memory_save_current_kstack(current);
     // TODO: take next_pcb's stack frames into current_pcb's stack frames
-    
+    memory_restore_kstack(next);
     // TLB flush
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
-   
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_KSTACK);
     // set current process to next pcb
-    current_process = next_pcb;
-
+    current_process = next;
     // return next pcbs kernel context
-    return next_pcb->kernel_context
+    return &next->kernel_context;
 }
 
-KernelContext KCCopy(KernelContext *KCin, void *new_pcb, void *) {
-    // check if new pcb is not null
-    if (new_pcb == NULL) {
-        return NULL;
+KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used)
+{
+    pcb_t *new = (pcb_t *)new_pcb;
+
+    (void)not_used;
+
+    if (new == NULL) {
+        helper_abort("KCCopy: new_pcb is NULL");
     }
 
-    // copy kcin into new pcbs kernel context
-    new_pcb->kernel_context = KCin;
+    new->kernel_context = *KCin;
 
-    // copy new_pcbs kernel stack frame into pages region 0
-    for (int i = KERNEL_STACK_BASE >> PAGESHIFT; i < KERNEL_STACK_LIMIT >> PAGESHIFT; i++){
-        // TODO: Here
-        // See above about pcb needs to have pointer to kernel stack?
-    }
+  for (int i = 0; i < KSTACK_PAGES; i++) {
+    int vpn = (KERNEL_STACK_BASE >> PAGESHIFT) + i;
 
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+    memory_copy_kstack_page(vpn, new->kstack_pfn[i]);
+}
+
+    return &new->kernel_context;
 }

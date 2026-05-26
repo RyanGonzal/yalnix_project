@@ -26,17 +26,19 @@ void traps_init(void)
 void trap_kernel(UserContext *uctxt)
 {
     // save UserContext into current_process PCB
-    // use uctxt  to .get syscall number
-    // call syscall handler later
-    // restore selected process UserContext 
-    // return 
+    // use uctxt to get syscall number
+    // call syscall handler
+    // return using the live uctxt modified by syscall
     TracePrintf(0, "TRAP_KERNEL syscall code: 0x%x\n", uctxt->code);
+
     if (current_process != NULL) {
         current_process->user_context = *uctxt;
     }
+
     syscall_handle(uctxt);
+
     if (current_process != NULL) {
-        *uctxt = current_process->user_context;
+        current_process->user_context = *uctxt;
     }
 }
 
@@ -68,8 +70,12 @@ void trap_memory(UserContext *uctxt)
     //     allocate and map new page
     // else:
     //     kill current process 
+     TracePrintf(0, "TRAP_MEMORY addr=%p pid=%d\n",
+                uctxt->addr, current_process->pid);
 
-    (void)uctxt;
+    process_exit_current(ERROR);
+    scheduler_run_next(uctxt);
+
 }
 
 //for all missing traps 

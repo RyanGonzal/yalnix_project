@@ -5,7 +5,9 @@
 // file is process handling( pcb) file 
 // current handling process
 pcb_t *current_process = NULL;
+pcb_t *init_process = NULL;
 static pcb_t idle_pcb;
+static pcb_t init_pcb;
 
 typedef struct {
     pcb_t *front;
@@ -48,50 +50,50 @@ pcb_t *dequeue(pcb_queue_t *rq) {
 
 // process_init sets up global process structure
 void process_init(void) {
-    // initialize global process table / queue structure
-    // initialize ready queue
-    // initialize blocked queues
+    // // initialize global process table / queue structure
+    // // initialize ready queue
+    // // initialize blocked queues
 
-    pcb_queue_t *ready_queue = malloc(sizeof(pcb_queue_t));
-    if (ready_queue == NULL) return ERROR;
+    // pcb_queue_t *ready_queue = malloc(sizeof(pcb_queue_t));
+    // if (ready_queue == NULL) return ERROR;
     
-    pcb_queue_t *blocked_queue = malloc(sizeof(pcb_queue_t));
-    if (blocked_queue == NULL) return ERROR;
+    // pcb_queue_t *blocked_queue = malloc(sizeof(pcb_queue_t));
+    // if (blocked_queue == NULL) return ERROR;
 
-    // set current_process to NULL
-    // prepare for idle
-    //  PCB creation
-    // current_process = NULL;
-    // init_process = NULL;
+    // // set current_process to NULL
+    // // prepare for idle
+    // //  PCB creation
+    // // current_process = NULL;
+    // // init_process = NULL;
 
-    //  PCB creation
-    // Nothing below this is correct
-    pcb_t new_pcb = malloc(sizeof(new_pcb_t));
-    if (new_pcb == NULL) return ERROR;  
+    // //  PCB creation
+    // // Nothing below this is correct
+    // pcb_t new_pcb = malloc(sizeof(new_pcb_t));
+    // if (new_pcb == NULL) return ERROR;  
 
-    // new_pcb.region1_pt = memory_get_region1_pt();
-    // new_pcb.pid = helper_new_pid(idle_pcb.region1_pt);
-    // new_pcb.state = PROC_READY;
-    // new_pcb.region1_pt = memory_get_region1_pt();
-    // new_pcb.parent = NULL;
-    // new_pcb.children = NULL;
-    // new_pcb.next_sibling = NULL;
-    // new_pcb.next = NULL;
-    // new_pcb.exit_status = 0;
-    // new_pcb.waiting_for_child = 0;
+    // // new_pcb.region1_pt = memory_get_region1_pt();
+    // // new_pcb.pid = helper_new_pid(idle_pcb.region1_pt);
+    // // new_pcb.state = PROC_READY;
+    // // new_pcb.region1_pt = memory_get_region1_pt();
+    // // new_pcb.parent = NULL;
+    // // new_pcb.children = NULL;
+    // // new_pcb.next_sibling = NULL;
+    // // new_pcb.next = NULL;
+    // // new_pcb.exit_status = 0;
+    // // new_pcb.waiting_for_child = 0;
 
-    // save current user context
-    UserContext *uctxt = malloc(sizeof(UserContext))
-    if (uctxt == NULL) return ERROR;  
-    // Allocate kernel context
-    KernelContext *kntxt = malloc(sizeof(KernelContext))
-    // add kernel stack frames
+    // // save current user context
+    // UserContext *uctxt = malloc(sizeof(UserContext))
+    // if (uctxt == NULL) return ERROR;  
+    // // Allocate kernel context
+    // KernelContext *kntxt = malloc(sizeof(KernelContext))
+    // // add kernel stack frames
 
-    // new_pcb.user_context = *uctxt;
+    // // new_pcb.user_context = *uctxt;
 
 
-    // prepare for idle
-    // we dont need to create a pcb, do we even need this function?
+    // // prepare for idle
+    // // we dont need to create a pcb, do we even need this function?
     current_process = NULL;
     init_process = NULL;
 
@@ -122,7 +124,8 @@ pcb_t *process_create_idle(UserContext *uctxt)
     idle_pcb.user_context = *uctxt;
 
     // Allocate kernel context
-    KernelContext *kntxt = malloc(sizeof(KernelContext))
+    // KernelContext *kntxt = malloc(sizeof(KernelContext));
+    memory_save_current_kstack(&idle_pcb);
     // add kernel stack frames
 
     //set process to idle
@@ -149,7 +152,10 @@ pcb_t *process_create_init(UserContext *uctxt)
     init_pcb.delay_ticks = 0;
 
     init_pcb.user_context = *uctxt;
-
+    if (memory_alloc_kstack(&init_pcb) == ERROR) {
+        helper_abort("process_create_init: kstack allocation failed");
+    }
+   
     init_process = &init_pcb;
     scheduler_add(&init_pcb);
     return &init_pcb;
@@ -159,18 +165,62 @@ pcb_t *process_create_init(UserContext *uctxt)
 // process_create_child creates a child process for Fork
 pcb_t *process_create_child(pcb_t *parent)
 {
+    pcb_t *child;
+
+    if (parent == NULL) {
+        return NULL;
+    }
 
     // allocate PCB for child
-    // assign new PID
-    // copy parent UserContext
-    // allocate child Region 1 page table
-    // copy valid parent pages into child address space
-    // link child to parent
-    // add child to ready queue
+    child = malloc(sizeof(pcb_t));
 
-    (void)parent;
-    return NULL;
+    if (child == NULL) {
+        return NULL;
+    }
+    // allocate child Region 1 page table
+    child->region1_pt = memory_init_region1();
+
+    if (child->region1_pt == NULL) {
+        free(child);
+        return NULL;
+    }
+    // copy valid parent pages into child address space
+    if (memory_copy_region1(parent->region1_pt, child->region1_pt) == ERROR) {
+        free(child);
+        return NULL;
+    }
+    // give child its own kernel stack frames
+    if (memory_alloc_kstack(child) == ERROR) {
+        free(child);
+        return NULL;
+    }
+
+    // assign new PID
+    child->pid = helper_new_pid(child->region1_pt);
+    child->state = PROC_READY;
+    // copy parent UserContext
+    child->user_context = parent->user_context;
+    // parent returns child pid, child returns 0
+    child->user_context.regs[0] = 0;
+    // copy parent kernel context and stack to child
+    if (KernelContextSwitch(KCCopy, child, NULL) == ERROR) {
+        free(child);
+        return NULL;
+    }
+    // link child to parent
+    child->parent = parent;
+    child->children = NULL;
+    child->next_sibling = parent->children;
+    parent->children = child;
+    child->next = NULL;
+    child->exit_status = 0;
+    child->waiting_for_child = 0;
+    child->delay_ticks = 0;
+    // add child to ready queue
+    scheduler_add(child);
+    return child;
 }
+
 
 // process_exit_current marks current process as exited.
 void process_exit_current(int status)
@@ -212,6 +262,12 @@ pcb_t *scheduler_next(void)
 void scheduler_add(pcb_t *proc) {
     // mark process as READY
     // add process to ready queue
+    if (proc == NULL || proc == process_get_idle()) {
+        return;
+    }
+
+    proc->state = PROC_READY;
+    enqueue(&ready_queue, proc);
 
 
 
@@ -223,9 +279,11 @@ void scheduler_block_current(void) {
     // mark current process as BLOCKED
     // place current process on correct blocked queue
     // schedule another process
+    if (current_process != NULL) {
+        current_process->state = PROC_BLOCKED;
+    }
 }
 
-// scheduler_run_next switches from current process to next process
 void scheduler_run_next(UserContext *uctxt)
 {
     // save current UserContext into current_process PCB
@@ -234,16 +292,21 @@ void scheduler_run_next(UserContext *uctxt)
     // switch kernel stack mapping if needed
     // flush TLB entries
     // copy next process UserContext into uctxt
+    pcb_t *old;
     pcb_t *next;
 
+    old = current_process;
+
     // Save current process user context
-    if (current_process != NULL) {
-        current_process->user_context = *uctxt;
-        if (current_process != process_get_idle() &&
-            current_process->state == PROC_RUNNING) {
-            scheduler_add(current_process);
-        }   
+    if (old != NULL) {
+        old->user_context = *uctxt;
+
+        if (old != process_get_idle() &&
+            old->state == PROC_RUNNING) {
+            scheduler_add(old);
+        }
     }
+
     // Pick next process
     next = scheduler_next();
 
@@ -255,7 +318,7 @@ void scheduler_run_next(UserContext *uctxt)
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
     // Restore selected process user context
-    *uctxt = current_process->user_context;   
+    *uctxt = current_process->user_context;
 }
 pcb_t *process_get_idle(void)
 {

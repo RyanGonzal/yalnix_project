@@ -24,9 +24,16 @@ int KernelFork(UserContext *uctxt)
     // copy parent address space
     // child returns 0
     // parent returns child pid
+    pcb_t *child;
+    current_process->user_context = *uctxt;
+    child = process_create_child(current_process);
+    if (child == NULL) {
+        return ERROR;
+    }
 
-    (void)uctxt;
-    return ERROR;
+    return child->pid;
+
+    
 }
 
 // replaces current prog w new prog
@@ -146,7 +153,10 @@ void syscall_handle(UserContext *uctxt)
         case YALNIX_GETPID:
             uctxt->regs[0] = KernelGetPid(uctxt);
             break;
-
+        case YALNIX_FORK:
+            uctxt->regs[0] = KernelFork(uctxt);
+            current_process->user_context = *uctxt;
+            break;
         case YALNIX_DELAY:
             uctxt->regs[0] = KernelDelay(uctxt);
             break;
