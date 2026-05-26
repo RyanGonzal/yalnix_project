@@ -58,20 +58,50 @@ void KernelStart(char *cmd_args[],unsigned int pmem_size, UserContext *uctxt)
 }
 
 KernelContext KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb) {
-    // check both pcbs are not null
-    // save current process kernel context (memcopy(pcb kernel context, kcin, sizeof kernel context))
+    // Check that both pcbs are not null
+    if (current_pcb == NULL) {
+        return NULL;
+    }
+
+    if (next_pcb == NULL) {
+        return NULL;
+    }
+
+    // Save current process kernel context
+    memcpy(current_pcb.kernel_context, KCin, sizeof(current_pcb.kernel_context))
+
     // loop through kernel stack and save each page in region 0 into current_pcbs stack frames
         // saving whatever is actually in memory into current pcb 
-    // take next_pcb's stack frames into current_pcb's stack frames
-        // TLB flush
+    for (int i = KERNEL_STACK_BASE >> PAGESHIFT; i < KERNEL_STACK_LIMIT >> PAGESHIFT; i++){
+        // TODO: Here.
+    }
+
+
+    // TODO: take next_pcb's stack frames into current_pcb's stack frames
+    
+    // TLB flush
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+   
     // set current process to next pcb
-    // return next pcbs kernel process
+    current_process = next_pcb;
+
+    // return next pcbs kernel context
+    return next_pcb->kernel_context
 }
 
 KernelContext KCCopy(KernelContext *KCin, void *new_pcb, void *) {
     // check if new pcb is not null
-        // return null if it is
+    if (new_pcb == NULL) {
+        return NULL;
+    }
+
     // copy kcin into new pcbs kernel context
+    new_pcb->kernel_context = KCin;
+
     // copy new_pcbs kernel stack frame into pages region 0
-    // TLB flush
+    for (int i = KERNEL_STACK_BASE >> PAGESHIFT; i < KERNEL_STACK_LIMIT >> PAGESHIFT; i++){
+        // TODO: Here
+    }
+
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 }
