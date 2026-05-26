@@ -51,12 +51,11 @@ void KernelStart(char *cmd_args[],unsigned int pmem_size, UserContext *uctxt)
     //flush then leave kernel in idle
     WriteRegister(REG_PTBR1, (unsigned int)process_get_idle()->region1_pt);
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
-
     current_process = process_get_idle();
+
 
     TracePrintf(0, "Leaving KernelSart\n");
 }
-
 KernelContext *KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb)
 {
     pcb_t *current = (pcb_t *)current_pcb;
@@ -73,6 +72,7 @@ KernelContext *KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb)
     // loop through kernel stack and save each page in region 0 into current_pcbs stack frames
     // saving whatever is actually in memory into current pcb
     memory_save_current_kstack(current);
+
     // TODO: take next_pcb's stack frames into current_pcb's stack frames
     memory_restore_kstack(next);
     // TLB flush
@@ -83,23 +83,27 @@ KernelContext *KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb)
     return &next->kernel_context;
 }
 
+
 KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used)
 {
     pcb_t *new = (pcb_t *)new_pcb;
 
     (void)not_used;
 
+    // check if new pcb is not null
     if (new == NULL) {
         helper_abort("KCCopy: new_pcb is NULL");
     }
 
+    // copy new_pcbs kernel stack frame into pages region 0
+    for (int i = 0; i < KSTACK_PAGES; i++) {
+        int vpn = (KERNEL_STACK_BASE >> PAGESHIFT) + i;
+
+        memory_copy_kstack_page(vpn, new->kstack_pfn[i]);
+    }
+
+    // NOW save copied context
     new->kernel_context = *KCin;
-
-  for (int i = 0; i < KSTACK_PAGES; i++) {
-    int vpn = (KERNEL_STACK_BASE >> PAGESHIFT) + i;
-
-    memory_copy_kstack_page(vpn, new->kstack_pfn[i]);
-}
 
     return &new->kernel_context;
 }

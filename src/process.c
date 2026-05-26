@@ -107,6 +107,7 @@ pcb_t *process_create_idle(UserContext *uctxt)
     idle_pcb.region1_pt = memory_get_region1_pt();
     idle_pcb.pid = helper_new_pid(idle_pcb.region1_pt);
     idle_pcb.state = PROC_RUNNING;
+    idle_pcb.kernel_context_valid = 0;
 
     //page table 
     idle_pcb.region1_pt = memory_get_region1_pt();
@@ -125,7 +126,12 @@ pcb_t *process_create_idle(UserContext *uctxt)
 
     // Allocate kernel context
     // KernelContext *kntxt = malloc(sizeof(KernelContext));
-    memory_save_current_kstack(&idle_pcb);
+    int base_page = KERNEL_STACK_BASE >> PAGESHIFT;
+    memory_capture_boot_kstack(&idle_pcb);
+
+   
+
+    // create initial kernel context for idle
     // add kernel stack frames
 
     //set process to idle
@@ -135,6 +141,7 @@ pcb_t *process_create_idle(UserContext *uctxt)
 }
 pcb_t *process_create_init(UserContext *uctxt)
 {
+    init_pcb.kernel_context_valid = 0;
     init_pcb.region1_pt = memory_init_region1();
     if (init_pcb.region1_pt == NULL) {
         helper_abort("failed to create Region 1 page table");
@@ -206,7 +213,8 @@ pcb_t *process_create_child(pcb_t *parent)
     if (KernelContextSwitch(KCCopy, child, NULL) == ERROR) {
         free(child);
         return NULL;
-    }
+    } 
+    child->kernel_context_valid = 1;
     // link child to parent
     child->parent = parent;
     child->children = NULL;
@@ -283,7 +291,6 @@ void scheduler_block_current(void) {
         current_process->state = PROC_BLOCKED;
     }
 }
-
 void scheduler_run_next(UserContext *uctxt)
 {
     // save current UserContext into current_process PCB
@@ -316,6 +323,30 @@ void scheduler_run_next(UserContext *uctxt)
     // Switch Region 1 to selected process
     WriteRegister(REG_PTBR1, (unsigned int)current_process->region1_pt);
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+
+    // Restore selected process user context
+    // Switch kernel stack/context safely
+    TracePrintf(0,
+        "SCHED oldpid=%d oldvalid=%d nextpid=%d nextvalid=%d oldstk=%d,%d nextstk=%d,%d\n",
+        old ? old->pid : -1,
+        old ? old->kernel_context_valid : -1,
+        current_process->pid,
+        current_process->kernel_context_valid,
+        old ? old->kstack_pfn[0] : -1,
+        old ? old->kstack_pfn[1] : -1,
+        current_process->kstack_pfn[0],
+        current_process->kstack_pfn[1]);
+
+    if (old != NULL && old != current_process) {
+        if (old->kernel_context_valid &&
+            current_process->kernel_context_valid) {
+            if (KernelContextSwitch(KCSwitch, old, current_process) == ERROR) {
+                helper_abort("scheduler_run_next: KernelContextSwitch failed");
+            }
+        } else {
+            memory_restore_kstack(current_process);
+        }
+    }
 
     // Restore selected process user context
     *uctxt = current_process->user_context;

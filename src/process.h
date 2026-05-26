@@ -17,6 +17,7 @@ typedef enum proc_state {
 typedef struct pcb {
     int pid;
     proc_state_t state;
+    int kernel_context_valid;
 
     // saved user and kernel context 
     UserContext user_context;

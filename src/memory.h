@@ -48,6 +48,6 @@ void memory_save_current_kstack(pcb_t *proc);
 void memory_restore_kstack(pcb_t *proc);
 void memory_copy_kstack_page(int vpn, int pfn);
 int memory_copy_region1(pte_t *parent_pt, pte_t *child_pt);
-
+void memory_capture_boot_kstack(pcb_t *proc);
 
 #endif

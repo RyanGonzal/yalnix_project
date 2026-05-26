@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <load_info.h>
 #include "process.h"
-#define KSTACK_SCRATCH_PAGE ((KERNEL_STACK_BASE >> PAGESHIFT) - 1)
+#define KSTACK_SCRATCH_PAGE 30
 //file is overall memory file
 
 // frame
@@ -141,6 +141,7 @@ void memory_init_region0(void)
     for(int i = KERNEL_STACK_BASE >> PAGESHIFT; i < KERNEL_STACK_LIMIT >> PAGESHIFT; i++){
         map_page(region0, i, i, PROT_READ | PROT_WRITE);
     }
+    region0[KSTACK_SCRATCH_PAGE].valid = 0;
   
 }
 
@@ -571,12 +572,20 @@ int memory_alloc_kstack(pcb_t *proc)
 }
 void memory_save_current_kstack(pcb_t *proc)
 {
-    //base page is the current physical frame numbers kernel stack current is
+    // base page is the current physical frame numbers kernel stack current is
     // >> pageshift to turn address into page number
     int base_page = KERNEL_STACK_BASE >> PAGESHIFT;
 
     for (int i = 0; i < KSTACK_PAGES; i++) {
-        //store kernel stack PFNS into PCB
+        // copy current live kernel stack contents into this PCB's owned stack frame
+        memory_copy_kstack_page(base_page + i, proc->kstack_pfn[i]);
+    }
+}
+void memory_capture_boot_kstack(pcb_t *proc)
+{
+    int base_page = KERNEL_STACK_BASE >> PAGESHIFT;
+
+    for (int i = 0; i < KSTACK_PAGES; i++) {
         proc->kstack_pfn[i] = region0[base_page + i].pfn;
     }
 }
@@ -584,7 +593,7 @@ void memory_restore_kstack(pcb_t *proc)
 {
     int base_page = KERNEL_STACK_BASE >> PAGESHIFT;
 
-    //save the physical stack frames when a context switch happens, and permissions
+    // save the physical stack frames when a context switch happens, and permissions
     for (int i = 0; i < KSTACK_PAGES; i++) {
         region0[base_page + i].valid = 1;
         region0[base_page + i].prot = PROT_READ | PROT_WRITE;
@@ -595,29 +604,30 @@ void memory_restore_kstack(pcb_t *proc)
 }
 void memory_copy_kstack_page(int src_vpn, int dst_pfn)
 {
-    char temp[PAGESIZE];
+    int scratch_vpn = KSTACK_SCRATCH_PAGE;
+    void *src_addr = (void *)(src_vpn << PAGESHIFT);
+    void *scratch_addr = (void *)(scratch_vpn << PAGESHIFT);
+    pte_t old_scratch = region0[scratch_vpn];
 
-    // save current stack page contents
-    memcpy(temp, (void *)(src_vpn << PAGESHIFT), PAGESIZE);
+    // if source already maps to destination, no copy needed
+    if (region0[src_vpn].pfn == dst_pfn) {
+        return;
+    }
 
     // temporarily map scratch page to destination frame
-    region0[KSTACK_SCRATCH_PAGE].valid = 1;
-    region0[KSTACK_SCRATCH_PAGE].prot = PROT_READ | PROT_WRITE;
-    region0[KSTACK_SCRATCH_PAGE].pfn = dst_pfn;
+    region0[scratch_vpn].valid = 1;
+    region0[scratch_vpn].prot = PROT_READ | PROT_WRITE;
+    region0[scratch_vpn].pfn = dst_pfn;
 
-    WriteRegister(REG_TLB_FLUSH,
-                  (unsigned int)(KSTACK_SCRATCH_PAGE << PAGESHIFT));
+    WriteRegister(REG_TLB_FLUSH, (unsigned int)scratch_addr);
 
-    // copy into child's frame through scratch mapping
-    memcpy((void *)(KSTACK_SCRATCH_PAGE << PAGESHIFT),
-           temp,
-           PAGESIZE);
+    // copy current live stack page into destination frame
+    memcpy(scratch_addr, src_addr, PAGESIZE);
 
-    // unmap scratch page
-    region0[KSTACK_SCRATCH_PAGE].valid = 0;
+    // restore scratch page mapping
+    region0[scratch_vpn] = old_scratch;
 
-    WriteRegister(REG_TLB_FLUSH,
-                  (unsigned int)(KSTACK_SCRATCH_PAGE << PAGESHIFT));
+    WriteRegister(REG_TLB_FLUSH, (unsigned int)scratch_addr);
 }
 int memory_copy_region1(pte_t *parent_pt, pte_t *child_pt)
 {
