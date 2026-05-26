@@ -238,14 +238,22 @@ void process_exit_current(int status)
     // wake parent if parent is waiting
     // schedule next process
     pcb_t *proc = current_process;
+
+    if (proc == NULL) {
+        return;
+    }
+
     proc->exit_status = status;
     proc->state = PROC_ZOMBIE;
+
     if (proc->parent != NULL && proc->parent->waiting_for_child) {
         proc->parent->waiting_for_child = 0;
+        proc->parent->state = PROC_READY;
         scheduler_add(proc->parent);
     }
 }
 
+// scheduler_next chooses the next process to run.
 // scheduler_next chooses the next process to run.
 pcb_t *scheduler_next(void)
 {
@@ -258,12 +266,15 @@ pcb_t *scheduler_next(void)
     // }
     // return &idle_pcb;
     //above was cp3
-    pcb_t *next = dequeue(&ready_queue);
-    if (next != NULL) {
-        return next;
-    }
-    return process_get_idle();
+    pcb_t *next;
 
+    while ((next = dequeue(&ready_queue)) != NULL) {
+        if (next->state == PROC_READY) {
+            return next;
+        }
+    }
+
+    return process_get_idle();
 }
 
 // scheduler_add adds a process to the ready queue.
@@ -310,6 +321,7 @@ void scheduler_run_next(UserContext *uctxt)
 
         if (old != process_get_idle() &&
             old->state == PROC_RUNNING) {
+            old->state = PROC_READY;
             scheduler_add(old);
         }
     }
@@ -346,6 +358,8 @@ void scheduler_run_next(UserContext *uctxt)
         } else {
             memory_restore_kstack(current_process);
         }
+    } else if (old == NULL) {
+        memory_restore_kstack(current_process);
     }
 
     // Restore selected process user context

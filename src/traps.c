@@ -75,8 +75,12 @@ void trap_memory(UserContext *uctxt)
                 uctxt->addr, current_process->pid);
 
     process_exit_current(ERROR);
-    scheduler_run_next(uctxt);
 
+    if (current_process != NULL) {
+        current_process = NULL;
+    }
+
+    scheduler_run_next(uctxt);
 }
 
 //for all missing traps 
