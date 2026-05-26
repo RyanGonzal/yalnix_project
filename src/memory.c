@@ -552,6 +552,7 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
 
     return SUCCESS;
 }
+
 //alocate helper for kstack 
 int memory_alloc_kstack(pcb_t *proc)
 {
@@ -569,6 +570,7 @@ int memory_alloc_kstack(pcb_t *proc)
 
     return SUCCESS;
 }
+
 void memory_save_current_kstack(pcb_t *proc)
 {
     //base page is the current physical frame numbers kernel stack current is
@@ -593,6 +595,7 @@ void memory_restore_kstack(pcb_t *proc)
 
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_KSTACK);
 }
+
 void memory_copy_kstack_page(int src_vpn, int dst_pfn)
 {
     char temp[PAGESIZE];
@@ -605,20 +608,17 @@ void memory_copy_kstack_page(int src_vpn, int dst_pfn)
     region0[KSTACK_SCRATCH_PAGE].prot = PROT_READ | PROT_WRITE;
     region0[KSTACK_SCRATCH_PAGE].pfn = dst_pfn;
 
-    WriteRegister(REG_TLB_FLUSH,
-                  (unsigned int)(KSTACK_SCRATCH_PAGE << PAGESHIFT));
+    WriteRegister(REG_TLB_FLUSH, (unsigned int)(KSTACK_SCRATCH_PAGE << PAGESHIFT));
 
     // copy into child's frame through scratch mapping
-    memcpy((void *)(KSTACK_SCRATCH_PAGE << PAGESHIFT),
-           temp,
-           PAGESIZE);
+    memcpy((void *)(KSTACK_SCRATCH_PAGE << PAGESHIFT), temp, PAGESIZE);
 
     // unmap scratch page
     region0[KSTACK_SCRATCH_PAGE].valid = 0;
 
-    WriteRegister(REG_TLB_FLUSH,
-                  (unsigned int)(KSTACK_SCRATCH_PAGE << PAGESHIFT));
+    WriteRegister(REG_TLB_FLUSH, (unsigned int)(KSTACK_SCRATCH_PAGE << PAGESHIFT));
 }
+
 int memory_copy_region1(pte_t *parent_pt, pte_t *child_pt)
 {
     int i;
@@ -652,9 +652,7 @@ int memory_copy_region1(pte_t *parent_pt, pte_t *child_pt)
 
             WriteRegister(REG_TLB_FLUSH, (unsigned int)scratch_addr);
 
-            memcpy(scratch_addr,
-                   (void *)(VMEM_1_BASE + i * PAGESIZE),
-                   PAGESIZE);
+            memcpy(scratch_addr, (void *)(VMEM_1_BASE + i * PAGESIZE), PAGESIZE);
 
             // deref scratch page 
             region0[scratch_page] = old_scratch;

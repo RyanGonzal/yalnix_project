@@ -57,8 +57,7 @@ void KernelStart(char *cmd_args[],unsigned int pmem_size, UserContext *uctxt)
     TracePrintf(0, "Leaving KernelSart\n");
 }
 
-KernelContext *KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb)
-{
+KernelContext *KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb) {
     pcb_t *current = (pcb_t *)current_pcb;
     pcb_t *next = (pcb_t *)next_pcb;
     // Check that both pcbs are not null
@@ -83,8 +82,7 @@ KernelContext *KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb)
     return &next->kernel_context;
 }
 
-KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used)
-{
+KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used) {
     pcb_t *new = (pcb_t *)new_pcb;
 
     (void)not_used;
@@ -95,11 +93,11 @@ KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used)
 
     new->kernel_context = *KCin;
 
-  for (int i = 0; i < KSTACK_PAGES; i++) {
-    int vpn = (KERNEL_STACK_BASE >> PAGESHIFT) + i;
+    for (int i = 0; i < KSTACK_PAGES; i++) {
+        int vpn = (KERNEL_STACK_BASE >> PAGESHIFT) + i;
 
-    memory_copy_kstack_page(vpn, new->kstack_pfn[i]);
-}
+        memory_copy_kstack_page(vpn, new->kstack_pfn[i]);
+    }
 
     return &new->kernel_context;
 }
