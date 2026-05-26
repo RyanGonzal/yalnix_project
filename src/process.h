@@ -24,6 +24,7 @@ typedef struct pcb {
 
     // Region 1 page table for current process
     pte_t *region1_pt;
+    pte_t *kernel_stack_frames;
 
     // parent/ child tracking
     struct pcb *parent;

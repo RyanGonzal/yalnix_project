@@ -76,7 +76,9 @@ KernelContext KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb) {
         // TODO: Here.
         // I think the pcb needs to have pointer to kernel stack?
         // This stack is set in process as discussed with TA (idle and init)
+        current_pcb->kernel_stack_frames[i] = region0[i]
     }
+
 
 
     // TODO: take next_pcb's stack frames into current_pcb's stack frames
