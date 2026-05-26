@@ -74,6 +74,8 @@ KernelContext KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb) {
         // saving whatever is actually in memory into current pcb 
     for (int i = KERNEL_STACK_BASE >> PAGESHIFT; i < KERNEL_STACK_LIMIT >> PAGESHIFT; i++){
         // TODO: Here.
+        // I think the pcb needs to have pointer to kernel stack?
+        // This stack is set in process as discussed with TA (idle and init)
     }
 
 
@@ -101,6 +103,7 @@ KernelContext KCCopy(KernelContext *KCin, void *new_pcb, void *) {
     // copy new_pcbs kernel stack frame into pages region 0
     for (int i = KERNEL_STACK_BASE >> PAGESHIFT; i < KERNEL_STACK_LIMIT >> PAGESHIFT; i++){
         // TODO: Here
+        // See above about pcb needs to have pointer to kernel stack?
     }
 
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
