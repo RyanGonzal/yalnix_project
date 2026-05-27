@@ -41,9 +41,28 @@ int KernelExec(UserContext *uctxt)
     // get program name and arguments from user memory
     // call LoadProgram 
     // replace current Region 1 address space
+    char *name;
+    char **args;
+    int result;
 
-    (void)uctxt;
-    return ERROR;
+    name = (char *)uctxt->regs[0];
+    args = (char **)uctxt->regs[1];
+
+    if (name == NULL || args == NULL) {
+        return ERROR;
+    }
+
+    result = LoadProgram(name, args, current_process);
+
+    if (result != SUCCESS) {
+        return ERROR;
+    }
+
+    *uctxt = current_process->user_context;
+
+    return SUCCESS;  
+
+   
 }
 
 // exit current process
@@ -189,6 +208,9 @@ void syscall_handle(UserContext *uctxt)
             break;
         case YALNIX_EXIT:
             KernelExit(uctxt);
+            break;
+        case YALNIX_EXEC:
+            uctxt->regs[0] = KernelExec(uctxt);
             break;
         default:
             TracePrintf(0, "Unknown syscall %d\n", uctxt->code);
