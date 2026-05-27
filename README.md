@@ -3,10 +3,7 @@
 
 ## Currently at checkpoint 4
 
-Kernel functions work as expected.
-One minor bug in fork, which is that the child resumes at parents delay, which then causes segfault. 
-Test 2 and Test 3 are buggy because of the Fork bug. Currently working on fixing this
-Also getting a warning about stale TLB so need to find where we are misssing a flush
+Kernel functions work as expected(fork, exit, wait, exec)
 
 ### Connecting 
 

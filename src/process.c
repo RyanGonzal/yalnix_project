@@ -211,7 +211,7 @@ pcb_t *process_create_child(pcb_t *parent)
         free(child);
         return NULL;
     } 
-    child->kernel_context_valid = 1;
+    child->kernel_context_valid = 0;
 
     // copy parent UserContext
     child->user_context = parent->user_context;
@@ -242,6 +242,8 @@ void process_exit_current(int status)
     // wake parent if parent is waiting
     // schedule next process
     pcb_t *proc = current_process;
+    pcb_t *parent;
+    int *status_ptr;
 
     if (proc == NULL) {
         return;
@@ -250,10 +252,25 @@ void process_exit_current(int status)
     proc->exit_status = status;
     proc->state = PROC_ZOMBIE;
 
-    if (proc->parent != NULL && proc->parent->waiting_for_child) {
-        proc->parent->waiting_for_child = 0;
-        proc->parent->state = PROC_READY;
-        scheduler_add(proc->parent);
+    parent = proc->parent;
+
+    if (parent != NULL && parent->waiting_for_child) {
+        status_ptr = (int *)parent->user_context.regs[0];
+
+        if (status_ptr != NULL) {
+            WriteRegister(REG_PTBR1, (unsigned int)parent->region1_pt);
+            WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+
+            *status_ptr = status;
+
+            WriteRegister(REG_PTBR1, (unsigned int)proc->region1_pt);
+            WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+        }
+
+        parent->user_context.regs[0] = proc->pid;
+        parent->waiting_for_child = 0;
+        parent->state = PROC_READY;
+        scheduler_add(parent);
     }
 }
 
@@ -341,7 +358,6 @@ void scheduler_run_next(UserContext *uctxt)
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
     // Restore selected process user context
-    // Switch kernel stack/context safely
     TracePrintf(0,
         "SCHED oldpid=%d oldvalid=%d nextpid=%d nextvalid=%d oldstk=%d,%d nextstk=%d,%d\n",
         old ? old->pid : -1,

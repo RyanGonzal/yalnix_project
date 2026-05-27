@@ -106,5 +106,5 @@ KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used)
     // NOW save copied context
     new->kernel_context = *KCin;
 
-    return &new->kernel_context;
+    return KCin;
 }
