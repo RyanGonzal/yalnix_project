@@ -25,7 +25,6 @@ int KernelFork(UserContext *uctxt)
     // child returns 0
     // parent returns child pid
     pcb_t *child;
-    current_process->user_context = *uctxt;
     child = process_create_child(current_process);
     if (child == NULL) {
         return ERROR;
@@ -53,13 +52,18 @@ int KernelExit(UserContext *uctxt)
     // get exit status
     // mark current process as zombie
     // schedule another process
-    int status = uctxt->regs[0];
+    int status;
+
+    status = uctxt->regs[0];
 
     process_exit_current(status);
 
+    current_process = NULL;
+
     scheduler_run_next(uctxt);
 
-    return 0;
+    return SUCCESS;
+    
 
     
 }
@@ -69,16 +73,32 @@ int KernelWait(UserContext *uctxt)
 {
     // while waiting for zombie child
     // get child pid and exit status
-     int status;
+    int *status_ptr;
+    int status;
     pcb_t *child;
+    int pid;
+
+    status_ptr = (int *)uctxt->regs[0];
 
     child = process_wait_for_child(&status);
 
-    if (child == NULL) {
-        return ERROR;
-    }
-    return child->pid;
+    if (child != NULL) {
+        if (status_ptr != NULL) {
+            *status_ptr = status;
+        }
 
+        pid = child->pid;
+        free(child);
+        return pid;
+    }
+
+    if (current_process != NULL &&
+        current_process->waiting_for_child) {
+        scheduler_run_next(uctxt);
+        return 0;
+    }
+
+    return ERROR;
 }
 
 // get current pid
@@ -155,7 +175,6 @@ void syscall_handle(UserContext *uctxt)
             break;
         case YALNIX_FORK:
             uctxt->regs[0] = KernelFork(uctxt);
-            current_process->user_context = *uctxt;
             break;
         case YALNIX_DELAY:
             uctxt->regs[0] = KernelDelay(uctxt);
@@ -169,7 +188,7 @@ void syscall_handle(UserContext *uctxt)
             uctxt->regs[0] = KernelWait(uctxt);
             break;
         case YALNIX_EXIT:
-            uctxt->regs[0] = KernelExit(uctxt);
+            KernelExit(uctxt);
             break;
         default:
             TracePrintf(0, "Unknown syscall %d\n", uctxt->code);

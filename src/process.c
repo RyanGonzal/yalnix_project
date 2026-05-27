@@ -205,16 +205,20 @@ pcb_t *process_create_child(pcb_t *parent)
     // assign new PID
     child->pid = helper_new_pid(child->region1_pt);
     child->state = PROC_READY;
-    // copy parent UserContext
-    child->user_context = parent->user_context;
-    // parent returns child pid, child returns 0
-    child->user_context.regs[0] = 0;
+
     // copy parent kernel context and stack to child
     if (KernelContextSwitch(KCCopy, child, NULL) == ERROR) {
         free(child);
         return NULL;
     } 
     child->kernel_context_valid = 1;
+
+    // copy parent UserContext
+    child->user_context = parent->user_context;
+    // parent returns child pid, child returns 0
+    child->user_context.regs[0] = 0;
+    parent->user_context.regs[0] = child->pid;
+
     // link child to parent
     child->parent = parent;
     child->children = NULL;

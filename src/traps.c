@@ -36,7 +36,6 @@ void trap_kernel(UserContext *uctxt)
     syscall_handle(uctxt);
 
     if (current_process == entering_process && current_process != NULL) {
-        current_process->user_context = *uctxt;
         current_process->kernel_context_valid = 1;
     }
 }

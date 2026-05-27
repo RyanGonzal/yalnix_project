@@ -622,7 +622,7 @@ void memory_copy_kstack_page(int src_vpn, int dst_pfn)
     region0[scratch_vpn].prot = PROT_READ | PROT_WRITE;
     region0[scratch_vpn].pfn = dst_pfn;
 
-    WriteRegister(REG_TLB_FLUSH, (unsigned int)scratch_addr);
+    WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_vpn << PAGESHIFT));
 
     // copy current live stack page into destination frame
     memcpy(scratch_addr, src_addr, PAGESIZE);
@@ -630,17 +630,15 @@ void memory_copy_kstack_page(int src_vpn, int dst_pfn)
     // restore scratch page mapping
     region0[scratch_vpn] = old_scratch;
 
-    WriteRegister(REG_TLB_FLUSH,
-                  (unsigned int)(KSTACK_SCRATCH_PAGE << PAGESHIFT));
+    WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_vpn << PAGESHIFT));
 }
-
 int memory_copy_region1(pte_t *parent_pt, pte_t *child_pt)
 {
     int i;
     int frame;
 
     // pick a scratch page so kernal can write to child, without deref mem
-    int scratch_page = (KERNEL_STACK_BASE >> PAGESHIFT) - 1;
+    int scratch_page = KSTACK_SCRATCH_PAGE;
     void *scratch_addr = (void *)(scratch_page << PAGESHIFT);
     pte_t old_scratch = region0[scratch_page];
 
@@ -652,7 +650,7 @@ int memory_copy_region1(pte_t *parent_pt, pte_t *child_pt)
             frame = alloc_frame();
             if (frame == ERROR) {
                 region0[scratch_page] = old_scratch;
-                WriteRegister(REG_TLB_FLUSH, (unsigned int)scratch_addr);
+                WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_page << PAGESHIFT));
                 return ERROR;
             }
 
@@ -665,14 +663,14 @@ int memory_copy_region1(pte_t *parent_pt, pte_t *child_pt)
             region0[scratch_page].prot = PROT_READ | PROT_WRITE;
             region0[scratch_page].pfn = frame;
 
-            WriteRegister(REG_TLB_FLUSH, (unsigned int)scratch_addr);
+            WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_page << PAGESHIFT));
 
             memcpy(scratch_addr, (void *)(VMEM_1_BASE + i * PAGESIZE), PAGESIZE);
 
             // deref scratch page 
             region0[scratch_page] = old_scratch;
 
-            WriteRegister(REG_TLB_FLUSH, (unsigned int)scratch_addr);
+            WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_page << PAGESHIFT));
         }
     }
 

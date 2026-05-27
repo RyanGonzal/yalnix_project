@@ -85,7 +85,8 @@ KernelContext *KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb)
 
 
 
-KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used) {
+KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used)
+{
     pcb_t *new = (pcb_t *)new_pcb;
 
     (void)not_used;
@@ -98,18 +99,12 @@ KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used) {
     // copy new_pcbs kernel stack frame into pages region 0
     for (int i = 0; i < KSTACK_PAGES; i++) {
         int vpn = (KERNEL_STACK_BASE >> PAGESHIFT) + i;
-    new->kernel_context = *KCin;
-
-    for (int i = 0; i < KSTACK_PAGES; i++) {
-        int vpn = (KERNEL_STACK_BASE >> PAGESHIFT) + i;
 
         memory_copy_kstack_page(vpn, new->kstack_pfn[i]);
     }
 
     // NOW save copied context
     new->kernel_context = *KCin;
-        memory_copy_kstack_page(vpn, new->kstack_pfn[i]);
-    }
 
     return &new->kernel_context;
 }
