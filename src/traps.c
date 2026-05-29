@@ -39,30 +39,30 @@ void tty_transmit_complete(UserContext *uctxt) {
 // handles sys_calls from user mode for kernel 
 void trap_kernel(UserContext *uctxt)
 {
-    // save UserContext into current_process PCB
-    // use uctxt  to .get syscall number
-    // call syscall handler later
-    // restore selected process UserContext 
-    // return 
+    pcb_t *entering_process;
+
     TracePrintf(0, "TRAP_KERNEL syscall code: 0x%x\n", uctxt->code);
+
+    entering_process = current_process;
+
+    if (entering_process != NULL) {
+        entering_process->user_context = *uctxt;
+    }
+
+    syscall_handle(uctxt);
+
+    if (current_process == entering_process && current_process != NULL) {
+        current_process->kernel_context_valid = 1;
+    }
+}
+void trap_clock(UserContext *uctxt)
+{
+    TracePrintf(0, "TRAP_CLOCK\n");
+
     if (current_process != NULL) {
         current_process->user_context = *uctxt;
     }
-    syscall_handle(uctxt);
-    if (current_process != NULL) {
-        *uctxt = current_process->user_context;
-    }
-}
 
-// timer interrupts 
-void trap_clock(UserContext *uctxt)
-{
-    // save current UserContext
-    // update sleep queues
-    // if time met switch to other process
-    // restore selected process UserContext
-    // return
-    TracePrintf(0, "TRAP_CLOCK\n");
     if (init_process != NULL && init_process->state == PROC_BLOCKED) {
         init_process->delay_ticks--;
 
@@ -71,8 +71,12 @@ void trap_clock(UserContext *uctxt)
         }
     }
 
-    scheduler_run_next(uctxt); 
+    scheduler_run_next(uctxt);
 }
+    
+
+
+
 
 // invalid memory requests or page table faults 
 void trap_memory(UserContext *uctxt)
@@ -82,8 +86,16 @@ void trap_memory(UserContext *uctxt)
     //     allocate and map new page
     // else:
     //     kill current process 
+    TracePrintf(0, "TRAP_MEMORY addr=%p pid=%d\n",
+                uctxt->addr, current_process->pid);
 
-    (void)uctxt;
+    process_exit_current(ERROR);
+
+    if (current_process != NULL) {
+        current_process = NULL;
+    }
+
+    scheduler_run_next(uctxt);
 }
 
 //for all missing traps 

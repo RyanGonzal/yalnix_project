@@ -1,9 +1,9 @@
 # Yalnix Project
 ## Ryan Gonzalez and Sam Hirsh
 
-## Currently at checkpoint 1
+## Currently at checkpoint 4
 
-Just Psuedocode
+Kernel functions work as expected(fork, exit, wait, exec)
 
 ### Connecting 
 
@@ -30,3 +30,5 @@ echo $YALNIX_FRAMEWORK
 # Building
 
 Make and make clean for rn very simple
+Init.c has tests that will tests, fork, wait, exit, and exec calling itself or another program. 
+Please comment and uncomment sections as testing.

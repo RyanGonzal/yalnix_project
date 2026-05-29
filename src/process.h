@@ -12,13 +12,12 @@ typedef enum proc_state {
     PROC_BLOCKED,
     PROC_ZOMBIE
 } proc_state_t;
-
+#define KSTACK_PAGES (KERNEL_STACK_MAXSIZE / PAGESIZE)
 // PCB: Process Control Block.
 typedef struct pcb {
     int pid;
-
-    
     proc_state_t state;
+    int kernel_context_valid;
 
     // saved user and kernel context 
     UserContext user_context;
@@ -26,7 +25,7 @@ typedef struct pcb {
 
     // Region 1 page table for current process
     pte_t *region1_pt;
-
+    int kstack_pfn[KSTACK_PAGES];
     // parent/ child tracking
     struct pcb *parent;
     struct pcb *children;
@@ -59,5 +58,7 @@ void scheduler_add(pcb_t *proc);
 void scheduler_block_current(void);
 void scheduler_run_next(UserContext *uctxt);
 pcb_t *process_create_idle(UserContext *uctxt);
-
+pcb_t *process_wait_for_child(int *status);
+KernelContext *KCSwitch(KernelContext *KCin, void *current_pcb, void *next_pcb);
+KernelContext *KCCopy(KernelContext *KCin, void *new_pcb, void *not_used);
 #endif
