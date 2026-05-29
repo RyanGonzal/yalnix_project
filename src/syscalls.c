@@ -96,10 +96,15 @@ int KernelTtyRead(UserContext *uctxt)
     // while data 
     // validate user data
     // copy input to bugger
+    int tty_id = regs[0];
+    void *buf = regs[1];
+    int len = regs[2];
 
+    if (tty_id == NULL || buf == NULL || len == NULL) return ERROR;
 
-    (void)uctxt;
-    return ERROR;
+    int len_received = TtyReceive(tty_id, buf, len);
+
+    return received_len;
 }
 
 // write to terminal via TTY
@@ -108,14 +113,37 @@ int KernelTtyWrite(UserContext *uctxt)
     // if user buffer == valid
     // copt bytes to kernel buffer, call TTY transmit
     // delay until it is done 
+    int tty_id = regs[0];
+    void *buf = regs[1];
+    int len = regs[2];
 
-    (void)uctxt;
-    return ERROR;
+    if (tty_id == NULL || buf == NULL || len == NULL) return ERROR;
+
+    // pseudo ish code, treat as "notes" for now
+    char *transmit_line[TERMINAL_MAX_LINE];
+    for (int i = 0; i < len / TERMINAL_MAX_LINE; i++) {
+        memcpy(&transmit_line, &(char*)buf[i*TERMINAL_MAX_LINE], TERMINAL_MAX_LINE)
+        TtyTransmit(tty_id, max_line, len);
+    }
+    
+    int remaining_byes = len % TERMINAL_MAX_LINE;
+    if (len % TERMINAL_MAX_LINE != 0) {
+        memcpy(&transmit_line, &(char*)buf[i*TERMINAL_MAX_LINE], remaining_byes)
+        TtyTransmit(tty_id, buf, len);
+    }
+
+    return len;
 }
 void syscall_handle(UserContext *uctxt)
 {
     // handle function just delaying and switching 
     switch (uctxt->code) {
+        case YALNIX_TTY_READ:
+            uctxt->regs[0] = KernelTtyRead(uctxt);
+            break;
+        case YALNIX_TTY_WRITE:
+            uctxt->regs[0] = KernelTtyRead(uctxt);
+            break;
         case YALNIX_GETPID:
             uctxt->regs[0] = current_process->pid;
             break;
