@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <load_info.h>
 #include "process.h"
+#define KSTACK_SCRATCH_PAGE 30
 //file is overall memory file
 
 // frame
@@ -23,7 +24,7 @@ static void *idle_stack_top = NULL;
 // VM flag and kernel break tracking
 static int vm_enabled = 0;
 static int kernel_brk_p = 0;
-
+static int scratch_page = -1;
 int text_pg1;
 int data_pg1;
 int data_npg;
@@ -132,10 +133,15 @@ void memory_init_region0(void)
     for(int i = _first_kernel_data_page; i < kernel_brk_p; i++){
         map_page(region0, i, i, PROT_READ | PROT_WRITE);
     }
+    scratch_page = (_orig_kernel_brk_page + 1);
+    if (scratch_page >= (KERNEL_STACK_BASE >> PAGESHIFT)) {
+        helper_abort("scratch_page overlaps kernel stack");
+        }
     // map kernel stack page
     for(int i = KERNEL_STACK_BASE >> PAGESHIFT; i < KERNEL_STACK_LIMIT >> PAGESHIFT; i++){
         map_page(region0, i, i, PROT_READ | PROT_WRITE);
     }
+    region0[KSTACK_SCRATCH_PAGE].valid = 0;
   
 }
 
@@ -548,3 +554,125 @@ int LoadProgram(char *name, char *args[], pcb_t *proc) {
     return SUCCESS;
 }
 
+//alocate helper for kstack 
+int memory_alloc_kstack(pcb_t *proc)
+{
+    int i;
+
+    //this is allocating physical frame for stack
+    for (i = 0; i < KSTACK_PAGES; i++) {
+        //get free frame, and return error if fails, else return goood 
+        proc->kstack_pfn[i] = alloc_frame();
+
+        if (proc->kstack_pfn[i] == ERROR) {
+            return ERROR;
+        }
+    }
+
+    return SUCCESS;
+}
+
+void memory_save_current_kstack(pcb_t *proc)
+{
+    // base page is the current physical frame numbers kernel stack current is
+    // >> pageshift to turn address into page number
+    int base_page = KERNEL_STACK_BASE >> PAGESHIFT;
+
+    for (int i = 0; i < KSTACK_PAGES; i++) {
+        // copy current live kernel stack contents into this PCB's owned stack frame
+        memory_copy_kstack_page(base_page + i, proc->kstack_pfn[i]);
+    }
+}
+void memory_capture_boot_kstack(pcb_t *proc)
+{
+    int base_page = KERNEL_STACK_BASE >> PAGESHIFT;
+
+    for (int i = 0; i < KSTACK_PAGES; i++) {
+        proc->kstack_pfn[i] = region0[base_page + i].pfn;
+    }
+}
+void memory_restore_kstack(pcb_t *proc)
+{
+    int base_page = KERNEL_STACK_BASE >> PAGESHIFT;
+
+    // save the physical stack frames when a context switch happens, and permissions
+    for (int i = 0; i < KSTACK_PAGES; i++) {
+        region0[base_page + i].valid = 1;
+        region0[base_page + i].prot = PROT_READ | PROT_WRITE;
+        region0[base_page + i].pfn = proc->kstack_pfn[i];
+    }
+
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_KSTACK);
+}
+
+void memory_copy_kstack_page(int src_vpn, int dst_pfn)
+{
+    int scratch_vpn = KSTACK_SCRATCH_PAGE;
+    void *src_addr = (void *)(src_vpn << PAGESHIFT);
+    void *scratch_addr = (void *)(scratch_vpn << PAGESHIFT);
+    pte_t old_scratch = region0[scratch_vpn];
+
+    // if source already maps to destination, no copy needed
+    if (region0[src_vpn].pfn == dst_pfn) {
+        return;
+    }
+
+    // temporarily map scratch page to destination frame
+    region0[scratch_vpn].valid = 1;
+    region0[scratch_vpn].prot = PROT_READ | PROT_WRITE;
+    region0[scratch_vpn].pfn = dst_pfn;
+
+    WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_vpn << PAGESHIFT));
+
+    // copy current live stack page into destination frame
+    memcpy(scratch_addr, src_addr, PAGESIZE);
+
+    // restore scratch page mapping
+    region0[scratch_vpn] = old_scratch;
+
+    WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_vpn << PAGESHIFT));
+}
+int memory_copy_region1(pte_t *parent_pt, pte_t *child_pt)
+{
+    int i;
+    int frame;
+
+    // pick a scratch page so kernal can write to child, without deref mem
+    int scratch_page = KSTACK_SCRATCH_PAGE;
+    void *scratch_addr = (void *)(scratch_page << PAGESHIFT);
+    pte_t old_scratch = region0[scratch_page];
+
+    // for each valid region 1 table, copy parent pages
+    for (i = 0; i < MAX_PT_LEN; i++) {
+        if (parent_pt[i].valid) {
+
+            // child new frame
+            frame = alloc_frame();
+            if (frame == ERROR) {
+                region0[scratch_page] = old_scratch;
+                WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_page << PAGESHIFT));
+                return ERROR;
+            }
+
+            // copy parents permissions
+            child_pt[i] = parent_pt[i];
+            child_pt[i].pfn = frame;
+
+            //  map scratch page, then copy parents to scratch
+            region0[scratch_page].valid = 1;
+            region0[scratch_page].prot = PROT_READ | PROT_WRITE;
+            region0[scratch_page].pfn = frame;
+
+            WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_page << PAGESHIFT));
+
+            memcpy(scratch_addr, (void *)(VMEM_1_BASE + i * PAGESIZE), PAGESIZE);
+
+            // deref scratch page 
+            region0[scratch_page] = old_scratch;
+
+            WriteRegister(REG_TLB_FLUSH, (unsigned int)(scratch_page << PAGESHIFT));
+        }
+    }
+
+    return SUCCESS;
+}

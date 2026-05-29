@@ -20,7 +20,7 @@ K_INCS = memory.h process.h traps.h syscalls.h
 U_SRC_DIR = .
 
 # What are the user c and include files?
-U_SRCS = init.c 
+U_SRCS = init.c  helloworld.c
 U_INCS =  
 
 
