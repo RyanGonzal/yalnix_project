@@ -20,6 +20,7 @@ int KernelBrk(UserContext *uctxt);
 int KernelDelay(UserContext *uctxt);
 int KernelTtyRead(UserContext *uctxt);
 int KernelTtyWrite(UserContext *uctxt);
+void tty_transmit_done(int tty_id);
 void syscall_handle(UserContext *uctxt);
 
 #endif

@@ -15,6 +15,7 @@ void traps_init(void);
 void trap_kernel(UserContext *uctxt);
 void trap_clock(UserContext *uctxt);
 void trap_memory(UserContext *uctxt);
+void trap_tty_transmit_complete(UserContext *uctxt);
 void trap_unhandled(UserContext *uctxt);
 
 

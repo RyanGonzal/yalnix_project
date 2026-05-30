@@ -66,28 +66,28 @@ int main(void)
      * parent waits for child.
      * Wait returns child pid and child's exit status.
      */
-    int pid;
-    int status;
-    int waited;
+    // int pid;
+    // int status;
+    // int waited;
     
-    pid = Fork();
+    // pid = Fork();
     
-    if (pid == 0) {
-        TracePrintf(1, "child: before Exit\n");
-        Exit(7);
-        TracePrintf(1, "child: after Exit SHOULD NOT PRINT\n");
-    }
+    // if (pid == 0) {
+    //     TracePrintf(1, "child: before Exit\n");
+    //     Exit(7);
+    //     TracePrintf(1, "child: after Exit SHOULD NOT PRINT\n");
+    // }
     
-    TracePrintf(1, "parent: forked child=%d\n", pid);
+    // TracePrintf(1, "parent: forked child=%d\n", pid);
     
-    waited = Wait(&status);
+    // waited = Wait(&status);
     
-    TracePrintf(1, "parent: Wait returned pid=%d status=%d\n",
-                waited, status);
+    // TracePrintf(1, "parent: Wait returned pid=%d status=%d\n",
+    //             waited, status);
     
-    while (1) {
-        Delay(2);
-    }
+    // while (1) {
+    //     Delay(2);
+    // }
 
 
     /*
@@ -129,4 +129,11 @@ int main(void)
     //     Delay(2);
     // }
 
+
+    TtyWrite(0, "hello from tty\n", 15);
+
+    while (1) {
+        Delay(2);
+   
+    }
 }

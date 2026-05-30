@@ -18,22 +18,25 @@ void traps_init(void)
     trap_vector[TRAP_CLOCK] = trap_clock;
     trap_vector[TRAP_KERNEL] = trap_kernel;
     trap_vector[TRAP_MEMORY] = trap_memory;
-    trap_vector[TRAP_TTY_RECEIVE] = tty_receive;
-    trap_vector[TRAP_TTY_TRANSMIT ] = tty_transmit_complete;
+    // trap_vector[TRAP_TTY_RECEIVE] = tty_receive;
+    trap_vector[TRAP_TTY_TRANSMIT ] = trap_tty_transmit_complete;
 
     WriteRegister(REG_VECTOR_BASE, (unsigned int)trap_vector);
 }
 
-void tty_receive(UserContext *uctxt) {
-    KernelTtyRead(uctxt);
-}
+// void tty_receive(UserContext *uctxt) {
+//     KernelTtyRead(uctxt);
+// }
 
-void tty_transmit_complete(UserContext *uctxt) {
-    int len = uctxt->regs[2];
+void trap_tty_transmit_complete(UserContext *uctxt)
+{
+    int tty_id;
 
-    if (len != 0) {
-        KernelTtyWrite(uctxt);
-    }
+    tty_id = uctxt->code;
+
+    TracePrintf(0, "TRAP_TTY_TRANSMIT tty=%d\n", tty_id);
+
+    tty_transmit_done(tty_id);
 }
 
 // handles sys_calls from user mode for kernel 
